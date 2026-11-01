@@ -103,8 +103,15 @@ def _rates(
 
 
 def calibrate(
-    genuine: Sequence[float], impostor: Sequence[float] | None = None, *, margin: float = MARGIN
+    genuine: Sequence[float],
+    impostor: Sequence[float] | None = None,
+    *,
+    margin: float = MARGIN,
+    ceiling: float | None = None,
 ) -> Calibration:
+    """``ceiling`` (the plugin's recommended threshold) caps the suggestion without impostor
+    scores: the owner's scores show how low the threshold may go, never how high. Above the
+    owner's typical scores it would only turn the owner into a stranger."""
     if not genuine:
         raise ValueError("calibration needs at least one owner score")
     g = [float(s) for s in genuine]
@@ -135,11 +142,19 @@ def calibrate(
     else:
         suggested = float(np.clip(g_summary.p10 - margin, -1.0, 1.0))
         far, eer = None, None
+        if ceiling is not None and suggested > ceiling:
+            suggested = ceiling
+            notes.append(
+                f"no samples of other people: the threshold stays at the model's recommended "
+                f"{ceiling:.2f}, well below the owner's scores; capture another person to "
+                "measure how high it may go"
+            )
+        else:
+            notes.append(
+                "no samples of other people: the threshold is a conservative margin below the "
+                "owner's 10th percentile; capture another person for a real estimate"
+            )
         _, frr = _rates(suggested, g, i)
-        notes.append(
-            "no samples of other people: the threshold is a conservative margin below the "
-            "owner's 10th percentile; capture another person for a real estimate"
-        )
 
     if g_summary.count < MIN_GENUINE:
         verdict = Verdict.INSUFFICIENT

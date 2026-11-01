@@ -37,11 +37,11 @@ async def test_scores_separate_owner_from_strangers_and_apply_stores_a_threshold
         await runtime.enrollment.enroll_voice()
         await runtime.enrollment.enroll_face()
 
-        owner_faces = await runtime.calibration.score_face(samples=5, timeout_s=10)
+        owner_faces = await runtime.calibration.score_face(samples=2, timeout_s=10)
         runtime.hardware.room.set_faces(Direction.FRONT, ["stranger"])
-        other_faces = await runtime.calibration.score_face(samples=5, timeout_s=10)
+        other_faces = await runtime.calibration.score_face(samples=2, timeout_s=10)
         runtime.hardware.room.set_faces(Direction.FRONT, [OWNER_TAG])
-        assert len(owner_faces) == len(other_faces) == 5
+        assert len(owner_faces) == len(other_faces) == 10  # 2 for each of the 5 poses
         assert min(owner_faces) > max(other_faces)
 
         runtime.hardware.room.clear_upcoming()

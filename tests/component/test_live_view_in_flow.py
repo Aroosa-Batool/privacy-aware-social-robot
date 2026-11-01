@@ -6,8 +6,9 @@ from datetime import timedelta
 import pytest
 
 from conftest import stand_ins
-from pasr.domain.enums import Direction, ReminderOrigin
+from pasr.domain.enums import Direction, FacePose, ReminderOrigin
 from pasr.live.feed import Tone
+from pasr.orchestration.enrollment import POSE_REQUESTS
 from pasr.orchestration.runtime import Runtime
 from pasr.settings.schema import Settings
 from support.clock import VirtualClock
@@ -57,10 +58,11 @@ async def test_enrolment_shows_each_sample(watched):
     identity = runtime.settings.identity
     voices = [voice.label for voice in feed.voices if voice.tone is Tone.SAMPLE]
     assert voices == [f"Sample {n}/{identity.enroll_voice_samples}" for n in range(1, 4)]
-    wanted = identity.enroll_face_samples
+    wanted = identity.enroll_face_samples * len(identity.enroll_face_poses)
     assert [face.label for face in feed.faces] == [
         f"Sample {n}/{wanted}" for n in range(1, wanted + 1)
     ]
+    assert feed.notes[0] == POSE_REQUESTS[FacePose.FRONT]  # the frame shows what was asked
     assert feed.chunks  # the microphone level while it listened
     assert feed.snapshot().image is None  # the robot stopped: nothing is held any more
 
@@ -70,14 +72,14 @@ async def test_calibration_shows_each_samples_similarity_to_the_owner(watched):
 
     async def body():
         await enroll(runtime)
-        await runtime.calibration.score_face(samples=3, timeout_s=10)
+        await runtime.calibration.score_face(samples=1, timeout_s=10)
         runtime.hardware.room.set_faces(Direction.FRONT, ["friend"])
-        await runtime.calibration.score_face(samples=3, timeout_s=10)
+        await runtime.calibration.score_face(samples=1, timeout_s=10)
 
     await drive(runtime, body)
     assert feed.steps[-2:] == ["Calibrating the face threshold"] * 2
     assert feed.details[-2:] == ["", ""]  # no plugin or threshold line under the title
-    owner, friend = feed.faces[-6:-3], feed.faces[-3:]
+    owner, friend = feed.faces[-10:-5], feed.faces[-5:]  # one for each of the 5 poses
     assert all(face.label.startswith("Sample ") and ": 0." in face.label for face in owner)
     assert {face.tone for face in owner} == {Tone.OWNER}
     assert {face.tone for face in friend} == {Tone.OTHER}

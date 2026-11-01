@@ -14,11 +14,22 @@ from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from pasr.domain.enums import Direction, WatchAnswer
+from pasr.domain.enums import Direction, FacePose, WatchAnswer
 from pasr.orchestration.clock import Clock
+from pasr.orchestration.enrollment import POSE_REQUESTS
 
 OWNER_TAG = "owner"
 """Identity tag of the owner in test scripts."""
+
+POSE_MOVES = {
+    FacePose.LEFT: (0.3, 0.0),
+    FacePose.RIGHT: (-0.3, 0.0),
+    FacePose.UP: (0.0, -0.1),
+    FacePose.DOWN: (0.0, 0.1),
+}
+"""How far a face turns (``framing.yaw``) and tilts (``framing.tilt``) for each pose the robot
+asks for."""
+ASKED_POSES = {text: pose for pose, text in POSE_REQUESTS.items()}
 
 CURRENT: Room | None = None
 """The most recently created room. Stand-in perception plugins are built by the registry from
@@ -45,13 +56,16 @@ class Spot:
 
 @dataclass(frozen=True, slots=True)
 class SeenFace:
-    """A face as the head camera sees it: its box clipped to the image, its landmarks, and its
-    ``clarity`` (1 in full view; lower makes its embedding less like the person's)."""
+    """A face as the head camera sees it: its box clipped to the image, its landmarks, its
+    ``clarity`` (1 in full view; lower makes its embedding less like the person's) and what
+    blurs it, its ``view``: a person's views of one kind (cut off, turned one way, turned the
+    other) embed alike, different kinds differently."""
 
     tag: str
     box: tuple[float, float, float, float]
     landmarks: tuple[tuple[float, float], ...]
     clarity: float
+    view: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +110,10 @@ class Room:
         """How far the head turned (HEADTURN) and nodded (HEADNOD) since it looked in its
         direction and took its pose."""
         self.field_of_view = FIELD_OF_VIEW
+        self.follows_guidance = True
+        """Everyone in view takes the pose the robot asked for (``asked_pose``)."""
+        self.asked_pose: FacePose | None = None
+        """The pose the robot last asked for, until the camera closes."""
         self.camera_on = False
         self.camera_opened = 0
         self.camera_grabs = 0
@@ -138,10 +156,16 @@ class Room:
         """Where ``person``'s face appears in their direction (see ``Spot``)."""
         self.spots[person] = Spot(**spot)
 
+    def heard(self, text: str) -> None:
+        """The robot said ``text``: a pose it asks for is taken until it asks for another."""
+        self.asked_pose = ASKED_POSES.get(text, self.asked_pose)
+
     def in_view(self, width: int, height: int) -> tuple[SeenFace, ...]:
         """The faces a ``width`` x ``height`` head camera sees, given where the head points."""
         turn, nod = self.head_offset
         span_turn, span_nod = self.field_of_view
+        pose = self.asked_pose if self.follows_guidance else None
+        face_turn, face_tilt = POSE_MOVES.get(pose, (0.0, 0.0)) if pose else (0.0, 0.0)
         seen = []
         for person in self.faces[self.head_direction]:
             spot = self.spots.get(person, Spot())
@@ -157,15 +181,17 @@ class Room:
             if visible < MIN_VISIBLE:
                 continue
             eye_y, half_eyes = cy - 0.3 * half_h, 0.4 * half_w
+            yaw = spot.turned + face_turn
             landmarks = (
                 (cx - half_eyes, eye_y),
                 (cx + half_eyes, eye_y),
-                (cx + spot.turned * 2 * half_eyes, cy),  # the nose tip
+                (cx + yaw * 2 * half_eyes, cy + face_tilt * 0.8 * half_h),  # the nose tip
                 (cx - half_eyes, cy + 0.5 * half_h),
                 (cx + half_eyes, cy + 0.5 * half_h),
             )
-            clarity = visible * (1 - min(spot.turned, 1.0) / 2)
-            seen.append(SeenFace(person, box, landmarks, clarity))
+            clarity = visible * (1 - min(abs(yaw), 1.0) / 2)
+            view = "cut off" if visible < 1 else f"turned {'+' if yaw > 0 else '-'}" if yaw else ""
+            seen.append(SeenFace(person, box, landmarks, clarity, view))
         return tuple(seen)
 
     def stage_owner(self, *, voice_samples: int, segment_s: float = 2.0) -> None:

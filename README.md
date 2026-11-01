@@ -53,7 +53,7 @@ Or do it all in the dashboard (`uv run pasr dashboard`):
 2. **Settings › Models** , choose the model for each stage of the experiment.
 3. **Start robot** (top right), then **Profile** , capture face and voice, make the
    privacy choices (whether to remember your watch answers for each person is one of them).
-   Calibrate the thresholds from the terminal (`uv run pasr calibrate`, as above).
+   Calibrate the thresholds on **Settings › Calibration** (or `uv run pasr calibrate`).
 4. **Home › Reminders** , type one, add a **Quick test** to watch the whole pipeline, or set one
    **by voice**; **Home** shows the pipeline live.
 

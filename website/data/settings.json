@@ -160,15 +160,42 @@
     "description": "Speech segments from someone other than the owner needed to decide that a bystander is present."
   },
   {
+    "key": "identity.enroll_face_poses",
+    "group": "identity",
+    "default": [
+      "front",
+      "left",
+      "right",
+      "up",
+      "down"
+    ],
+    "tier": "advanced",
+    "limits": [
+      "min length 1"
+    ],
+    "description": "Which way the robot asks the owner to look while it learns their face, always in the order front, left, right, up, down. Front is needed: the robot sees it most, and up and down are measured from it. Drop a pose the robot keeps rejecting."
+  },
+  {
     "key": "identity.enroll_face_samples",
     "group": "identity",
-    "default": 5,
+    "default": 4,
     "tier": "advanced",
     "limits": [
       "≥ 1",
-      "≤ 50"
+      "≤ 20"
     ],
-    "description": "Face images used to enrol the owner."
+    "description": "Face images per pose used to enrol the owner, taken at least half a second apart."
+  },
+  {
+    "key": "identity.enroll_face_pose_seconds",
+    "group": "identity",
+    "default": 15.0,
+    "tier": "advanced",
+    "limits": [
+      "> 0",
+      "≤ 120"
+    ],
+    "description": "Longest wait for one face pose's images after the robot asks for it. A pose that falls short is asked for once more at the end, and left out if it falls short again; enrolment fails only without the front pose."
   },
   {
     "key": "identity.enroll_voice_samples",
@@ -190,7 +217,7 @@
       "> 0",
       "≤ 300"
     ],
-    "description": "Give up enrolment if not enough samples arrive within this time."
+    "description": "Give up voice enrolment if not enough speech arrives within this time."
   },
   {
     "key": "identity.aggregate",
@@ -319,7 +346,7 @@
       "≥ 10",
       "≤ 2000"
     ],
-    "description": "A face narrower than this (in camera pixels) is too small to compare well."
+    "description": "A face narrower than this (in camera pixels) is too small to compare well. Also applies to the owner's enrolment images, whether following is on or off."
   },
   {
     "key": "scan.follow.min_score",
@@ -330,7 +357,7 @@
       "≥ 0",
       "≤ 1"
     ],
-    "description": "Detector confidence a face needs to count as in full view."
+    "description": "Detector confidence a face needs to count as in full view. Also applies to the owner's enrolment images."
   },
   {
     "key": "scan.follow.edge_margin",
@@ -341,7 +368,7 @@
       "≥ 0",
       "≤ 0.3"
     ],
-    "description": "A face closer than this share of the image to an edge may be cut off."
+    "description": "A face closer than this share of the image to an edge may be cut off. Also applies to the owner's enrolment images."
   },
   {
     "key": "scan.follow.max_turned",

@@ -21,7 +21,8 @@ class FaceObservation:
     never stored."""
     landmarks: tuple[tuple[float, float], ...] | None = None
     """Eyes, nose tip and mouth corners in pixels, in that order, if the plugin finds them; only
-    used to tell whether the face is turned away, never stored."""
+    used to tell whether the face is turned away and, while enrolling, which way it points;
+    never stored."""
 
 
 @dataclass(frozen=True, slots=True)

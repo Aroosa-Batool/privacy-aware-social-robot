@@ -4,15 +4,20 @@ import math
 
 import pytest
 
+from pasr.domain.enums import FacePose
 from pasr.domain.framing import (
     CENTRED,
     FullView,
+    PoseCheck,
+    PoseMiss,
     ViewProblem,
     after_move,
     head_move,
     offset,
+    tilt,
     turned,
     view_problems,
+    yaw,
 )
 
 SIZE = (640, 480)
@@ -22,6 +27,13 @@ FRONTAL = ((290.0, 220.0), (350.0, 220.0), (320.0, 250.0), (295.0, 280.0), (345.
 
 def problems(box, score=0.9, landmarks=FRONTAL):
     return view_problems(box, score, landmarks, SIZE, RULES)
+
+
+def posed(turn: float = 0.0, chin: float = 0.0):
+    """``FRONTAL`` with the nose tip moved ``turn`` eye distances sideways and ``chin`` times
+    the eye-to-mouth distance down."""
+    left, right, (nx, ny), *mouth = FRONTAL
+    return (left, right, (nx + turn * 60, ny + chin * 60), *mouth)
 
 
 def test_a_centred_frontal_face_is_in_full_view():
@@ -56,6 +68,43 @@ def test_turned_measures_the_nose_along_the_eye_line():
     tilted = ((0.0, 0.0), (60.0, 60.0), (20.0, 40.0))  # head tilted 45°, nose under the middle
     assert turned(tilted) == pytest.approx(0)
     assert turned(((10.0, 10.0), (10.0, 10.0), (12.0, 20.0))) == math.inf
+
+
+def test_yaw_keeps_the_side_and_tilt_places_the_nose_between_eyes_and_mouth():
+    assert yaw(posed(0.3)) == pytest.approx(0.3)
+    assert yaw(posed(-0.3)) == pytest.approx(-0.3) and turned(posed(-0.3)) == pytest.approx(0.3)
+    assert tilt(FRONTAL) == pytest.approx(0.5)
+    assert tilt(posed(chin=-0.1)) == pytest.approx(0.4)
+    rolled = ((0.0, 0.0), (60.0, 60.0), (10.0, 50.0), (-20.0, 60.0), (0.0, 80.0))  # 45° roll
+    assert tilt(rolled) == pytest.approx(0.5)
+    assert tilt(((0.0, 0.0), (60.0, 0.0), (30.0, 0.0), (0.0, 0.0), (60.0, 0.0))) == math.inf
+
+
+def test_each_pose_takes_only_faces_pointing_its_way_and_says_why_not():
+    check = PoseCheck()
+    assert check.miss(FacePose.FRONT, posed(0.3)) is PoseMiss.TURNED
+    assert check.miss(FacePose.FRONT, FRONTAL) is None and check.level == [pytest.approx(0.5)]
+    assert check.miss(FacePose.LEFT, posed(0.1)) is PoseMiss.TOO_LITTLE
+    assert check.miss(FacePose.LEFT, posed(0.9)) is PoseMiss.TOO_FAR  # unreliable that far
+    assert check.miss(FacePose.LEFT, posed(-0.3)) is None  # either side may be the left...
+    assert check.miss(FacePose.LEFT, posed(0.3)) is PoseMiss.WRONG_WAY  # ...then always it
+    assert check.miss(FacePose.RIGHT, posed(-0.3)) is PoseMiss.WRONG_WAY
+    assert check.miss(FacePose.RIGHT, posed(0.3)) is None
+    assert check.miss(FacePose.UP, posed(chin=-0.03)) is PoseMiss.TOO_LITTLE
+    assert check.miss(FacePose.UP, posed(0.9, chin=-0.1)) is PoseMiss.TURNED
+    assert check.miss(FacePose.UP, posed(chin=-0.1)) is None
+    assert check.miss(FacePose.DOWN, posed(chin=-0.1)) is PoseMiss.WRONG_WAY
+    assert check.miss(FacePose.DOWN, posed(chin=0.1)) is None
+
+
+def test_up_and_down_need_straight_ahead_faces_and_without_landmarks_any_face_counts():
+    check = PoseCheck()
+    assert check.miss(FacePose.UP, posed(chin=-0.1)) is PoseMiss.NO_LEVEL
+    assert check.miss(FacePose.UP, None) is None and check.miss(FacePose.LEFT, None) is None
+    assert check.miss(FacePose.UP, FRONTAL[:3]) is None  # no mouth corners: tilt is unknown
+    assert check.signs == {} and check.tilted(FRONTAL) is None
+    assert check.miss(FacePose.FRONT, FRONTAL) is None
+    assert check.tilted(posed(chin=0.1)) == pytest.approx(0.1)
 
 
 def test_offset_runs_from_edge_to_edge():

@@ -76,6 +76,7 @@ class FakeSpeaker:
 
     async def say(self, text: str) -> None:
         self.room.spoken.append(LogLine(self.clock.now(), text))
+        self.room.heard(text)
         await self.clock.sleep(SECONDS_PER_WORD * max(len(text.split()), 1))
 
 
@@ -98,6 +99,7 @@ class FakeCamera:
 
     async def close(self) -> None:
         self.room.camera_on = False
+        self.room.asked_pose = None  # done: people relax
 
     async def grab(self) -> Frame:
         if not self.room.camera_on:

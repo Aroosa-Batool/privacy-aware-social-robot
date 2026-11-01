@@ -15,6 +15,7 @@ from pasr.hardware.protocols import Camera, Microphone
 from pasr.live.feed import Tone
 from pasr.orchestration.context import RobotContext
 from pasr.orchestration.enrollment import (
+    POSES_DONE,
     Describe,
     EnrollmentError,
     Progress,
@@ -39,24 +40,34 @@ class CalibrationService:
         *,
         samples: int,
         timeout_s: float,
+        guided: bool = True,
         camera: Camera | None = None,
         progress: Progress | None = None,
     ) -> list[float]:
-        """Similarity of fresh single-face frames to the enrolled face, as the flow computes it."""
+        """Similarity of fresh single-face frames to the enrolled face, as the flow computes it:
+        ``samples`` for each enrolment pose, which the robot asks for in turn (``timeout_s``
+        each), or ``samples`` in any pose without ``guided`` (image folders)."""
         enrolled = self._enrolled(Biometric.FACE)
+        poses = self.ctx.settings.identity.enroll_face_poses if guided else None
+        wanted = samples * (len(poses) if poses else 1)
         with self._live(Biometric.FACE):
-            probes, status = await capture_face_embeddings(
+            captures, status = await capture_face_embeddings(
                 self.ctx,
-                wanted=samples,
-                deadline=self._deadline(timeout_s),
+                poses=poses,
+                per_pose=samples,
+                pose_seconds=timeout_s,
                 camera=camera,
                 progress=progress,
-                describe=self._describe(Biometric.FACE, enrolled, samples),
+                describe=self._describe(Biometric.FACE, enrolled, wanted),
             )
+        if poses:
+            await self.ctx.hardware.speaker.say(POSES_DONE)
+        probes = [probe for capture in captures for probe in capture.samples]
         if not probes:
             raise EnrollmentError(
-                f"no frame with exactly one face in {status.frames} frames "
-                f"(none in {status.no_face}, several in {status.many_faces})"
+                f"no usable frame in {status.frames} frames (no face in {status.no_face}, "
+                f"several in {status.many_faces}, not in full view or not looking the asked "
+                f"way in {status.unusable})"
             )
         return self._score(probes, enrolled)
 

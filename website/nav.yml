@@ -54,6 +54,7 @@ tabs:
           - dashboard/events
           - dashboard/setup
           - dashboard/models
+          - dashboard/calibration
           - dashboard/hardware
           - dashboard/reset
           - dashboard/live-view

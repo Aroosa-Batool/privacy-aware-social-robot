@@ -76,6 +76,16 @@ class Pose(StrEnum):
     REST = "rest"
 
 
+class FacePose(StrEnum):
+    """Which way the robot asks the owner to look while it learns their face."""
+
+    FRONT = "front"
+    LEFT = "left"
+    RIGHT = "right"
+    UP = "up"
+    DOWN = "down"
+
+
 class WatchAnswer(StrEnum):
     YES = "yes"
     NO = "no"

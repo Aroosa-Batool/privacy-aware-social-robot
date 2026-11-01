@@ -7,7 +7,7 @@ description: Register the robot's owner, teach it their face and voice, make the
 The robot keeps only face and voice **embeddings** (lists of numbers), never photos or
 recordings. A progress bar at the top shows how much of the profile is complete.
 
-::image src=/assets/media/profile.webp alt="The Profile page: Owner, Face and Voice steps marked Done, with Capture face and Capture voice buttons." url=localhost:8501/profile caption="All three enrolment steps done: 5 face samples and 3 voice samples, each tagged with its model."
+::image src=/assets/media/profile.webp alt="The Profile page: Owner, Face and Voice steps marked Done, with Capture face and Capture voice buttons." url=localhost:8501/profile caption="All three enrolment steps done, each tagged with the model that made its samples."
 
 :::steps
 @step Owner
@@ -17,10 +17,24 @@ robot's own speech; it never enters the research log.
 
 @step Face
 
-Click **Capture face** with the robot running and look at the head camera, **alone in the
-frame**, until enough samples are in (`identity.enroll_face_samples`, 5). The page shows the
-number of samples and the model that made them, for example `insightface-buffalo_l`.
-**Delete face data** removes them.
+Click **Capture face** with the robot running, sit **alone** in front of the head camera, about
+an arm's length away, and do what the robot says: look straight at its camera, turn your head
+about halfway to your left and to your right, then tilt your chin up and down. It keeps 4
+images of each pose (`identity.enroll_face_samples`), half a second apart, and uses a frame only
+when your face is in full view and points the asked way. When a pose does not come it says what
+is wrong ("Please come a little closer to me", "The other way, please"), and at the end it asks
+once more for each pose it missed. Each pose gets at most 15 seconds
+(`identity.enroll_face_pose_seconds`); the whole capture takes about half a minute.
+
+The robot tells you how it went. With the straight-ahead pose it stores your face, and names any
+pose it could not see (the page then says how many of the 20 images it stored; capture again to
+add the rest). Without it, nothing is stored, and the robot says why and asks you to try again.
+The page shows the number of samples and the model that made them, for example
+`insightface-buffalo_l`. **Delete face data** removes them.
+
+If one pose keeps failing, the `owner.face_pose` events on the Events page say why; the pose can
+also be left out of `identity.enroll_face_poses`. See
+[ADR 0011](/decisions/0011-guided-face-enrolment).
 
 @step Voice
 

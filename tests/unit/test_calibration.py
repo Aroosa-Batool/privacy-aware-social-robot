@@ -58,6 +58,17 @@ def test_without_impostors_a_margin_below_the_owner_is_used():
     assert "no samples of other people" in result.notes[0]
 
 
+def test_without_impostors_the_owner_alone_never_raises_it_above_the_model_default():
+    # near-copies of one view score very high: p10 - 0.10 would be about 0.85, and then the
+    # owner seen from the side or in other light would count as a stranger
+    owner = [0.95, 0.96, 0.96, 0.97, 0.98]
+    assert calibrate(owner, ceiling=0.40).suggested == 0.40
+    assert "model's recommended 0.40" in calibrate(owner, ceiling=0.40).notes[0]
+    low = [0.40, 0.42, 0.45, 0.50, 0.55]  # below the default: the margin under the owner wins
+    assert calibrate(low, ceiling=0.40).suggested == pytest.approx(calibrate(low).suggested)
+    assert calibrate(owner, [0.1, 0.2], ceiling=0.40).suggested > 0.40  # others measured
+
+
 def test_too_few_owner_samples_is_insufficient():
     result = calibrate([0.9] * (MIN_GENUINE - 1), [0.1] * 10)
     assert result.verdict is Verdict.INSUFFICIENT

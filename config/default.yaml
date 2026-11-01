@@ -18,7 +18,14 @@ identity:
   face_threshold: 0.4
   min_voice_segment_seconds: 1.0
   min_nonowner_segments: 1
-  enroll_face_samples: 5
+  enroll_face_poses:
+  - front
+  - left
+  - right
+  - up
+  - down
+  enroll_face_samples: 4
+  enroll_face_pose_seconds: 15.0
   enroll_voice_samples: 3
   enroll_timeout_seconds: 30.0
   aggregate: max

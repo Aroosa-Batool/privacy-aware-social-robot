@@ -39,7 +39,7 @@ def test_calibrate_needs_an_enrolment_then_saves_the_threshold(data_dir: Path):
 
     result = runner.invoke(app, ["calibrate", "face", "--others", "0", "--apply"], input="\n")
     assert result.exit_code == 0, result.output
-    assert "Owner: press Enter, then look at the camera" in result.output
+    assert "Owner: press Enter, then do what the robot says" in result.output
     assert "suggested identity.face_threshold" in result.output
     assert "no samples of other people" in result.output
     assert "Saved identity.face_threshold" in result.output

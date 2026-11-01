@@ -61,7 +61,7 @@ async def test_face_enrolment_refuses_crowded_frames(runtime: Runtime):
     async def body():
         runtime.enrollment.register("Owner")
         runtime.hardware.room.set_faces(Direction.FRONT, [OWNER_TAG, "friend"])
-        with pytest.raises(EnrollmentError, match="exactly one face"):
+        with pytest.raises(EnrollmentError, match="several faces in [1-9]"):
             await runtime.enrollment.enroll_face()
         assert runtime.repos.owner.embeddings(Biometric.FACE) == []
 
@@ -72,7 +72,9 @@ async def test_enrolment_stores_only_embeddings(runtime: Runtime):
     async def body():
         await enroll(runtime)
         counts = runtime.repos.owner.enrollment()
-        assert counts[Biometric.FACE][0] == runtime.settings.identity.enroll_face_samples
+        identity = runtime.settings.identity
+        faces = identity.enroll_face_samples * len(identity.enroll_face_poses)
+        assert counts[Biometric.FACE][0] == faces
         assert counts[Biometric.VOICE][0] == runtime.settings.identity.enroll_voice_samples
         assert runtime.hardware.room.camera_on is False  # camera released after enrolment
 
@@ -155,7 +157,7 @@ async def test_the_dashboard_sees_what_turned_a_reminder_to_the_watch(runtime: R
         assert flow is not None
         assert (flow.planned, flow.answer, flow.delivered) == ("watch", "no", "watch")
         consent, deliver = stages(flow)[-2:]
-        assert (consent.progress, consent.word) == ("turned", "said no")
+        assert (consent.progress, consent.word) == ("done", "said no")  # their decision, followed
         assert (deliver.progress, deliver.word) == ("done", "to watch")
 
     await drive(runtime, body)

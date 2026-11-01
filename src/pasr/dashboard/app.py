@@ -45,6 +45,7 @@ sections = {
                 PAGES / "hardware.py", title="Hardware", icon=":material/precision_manufacturing:"
             ),
             st.Page(PAGES / "models.py", title="Models", icon=":material/tune:"),
+            st.Page(PAGES / "calibration.py", title="Calibration", icon=":material/straighten:"),
             st.Page(PAGES / "reset.py", title="Reset", icon=":material/restart_alt:"),
         ],
     ),

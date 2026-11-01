@@ -1,4 +1,5 @@
-"""`pasr setup` on stand-in devices (system clock: the face takes about half a second)."""
+"""`pasr setup` on stand-in devices (system clock, with the guided face enrolment's pauses
+shortened: the face takes about half a second)."""
 
 from pathlib import Path
 
@@ -42,9 +43,10 @@ def test_setup_saves_the_owner_and_the_answers(data_dir: Path):
 def test_setup_enrols_the_face_with_guidance(data_dir: Path):
     result = setup("--modality", "audio_and_camera", "--no-voice")
     assert result.exit_code == 0, result.output
-    assert FACE_GUIDANCE in result.output and "face: 5 samples" in result.output
+    assert FACE_GUIDANCE in result.output and "face: 20 samples" in result.output
+    assert "pose: down" in result.output  # the progress line names the pose
     enrolled = open_offline(load_settings()).repos.owner.enrollment()
-    assert enrolled[Biometric.FACE][0] == 5 and Biometric.VOICE not in enrolled
+    assert enrolled[Biometric.FACE][0] == 20 and Biometric.VOICE not in enrolled
 
 
 def test_live_view_opens_a_window_for_this_run_only(

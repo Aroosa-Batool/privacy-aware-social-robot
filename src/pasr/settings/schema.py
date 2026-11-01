@@ -10,9 +10,9 @@ from datetime import time
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from pasr.domain.enums import DetectionModality, Direction, DisclosurePolicy
+from pasr.domain.enums import DetectionModality, Direction, DisclosurePolicy, FacePose
 from pasr.domain.framing import FullView
 from pasr.domain.identity import Aggregate
 from pasr.domain.timing import LATE_LISTEN_SHARE
@@ -153,8 +153,30 @@ class IdentitySettings(_Group):
         description="Speech segments from someone other than the owner needed to decide "
         "that a bystander is present.",
     )
+    enroll_face_poses: list[FacePose] = setting(
+        tier="advanced",
+        default_factory=lambda: list(FacePose),
+        min_length=1,
+        description="Which way the robot asks the owner to look while it learns their face, "
+        "always in the order front, left, right, up, down. Front is needed: the robot sees it "
+        "most, and up and down are measured from it. Drop a pose the robot keeps rejecting.",
+    )
     enroll_face_samples: int = setting(
-        5, tier="advanced", ge=1, le=50, description="Face images used to enrol the owner."
+        4,
+        tier="advanced",
+        ge=1,
+        le=20,
+        description="Face images per pose used to enrol the owner, taken at least half a "
+        "second apart.",
+    )
+    enroll_face_pose_seconds: float = setting(
+        15.0,
+        tier="advanced",
+        gt=0,
+        le=120,
+        description="Longest wait for one face pose's images after the robot asks for it. A "
+        "pose that falls short is asked for once more at the end, and left out if it falls "
+        "short again; enrolment fails only without the front pose.",
     )
     enroll_voice_samples: int = setting(
         3, tier="advanced", ge=1, le=20, description="Speech segments used to enrol the owner."
@@ -164,7 +186,7 @@ class IdentitySettings(_Group):
         tier="advanced",
         gt=0,
         le=300,
-        description="Give up enrolment if not enough samples arrive within this time.",
+        description="Give up voice enrolment if not enough speech arrives within this time.",
     )
     aggregate: Aggregate = setting(
         Aggregate.MAX,
@@ -172,6 +194,13 @@ class IdentitySettings(_Group):
         description="Compare with several enrolled samples by the best single match (max) "
         "or by their averaged embedding (mean).",
     )
+
+    @field_validator("enroll_face_poses")
+    @classmethod
+    def _front_first(cls, poses: list[FacePose]) -> list[FacePose]:
+        if FacePose.FRONT not in poses:
+            raise ValueError("include 'front': the up and down poses are measured from it")
+        return [pose for pose in FacePose if pose in poses]
 
 
 class VadSettings(_Group):
@@ -215,21 +244,24 @@ class FollowSettings(_Group):
         tier="advanced",
         ge=10,
         le=2000,
-        description="A face narrower than this (in camera pixels) is too small to compare well.",
+        description="A face narrower than this (in camera pixels) is too small to compare well. "
+        "Also applies to the owner's enrolment images, whether following is on or off.",
     )
     min_score: float = setting(
         0.7,
         tier="advanced",
         ge=0,
         le=1,
-        description="Detector confidence a face needs to count as in full view.",
+        description="Detector confidence a face needs to count as in full view. Also applies "
+        "to the owner's enrolment images.",
     )
     edge_margin: float = setting(
         0.03,
         tier="advanced",
         ge=0,
         le=0.3,
-        description="A face closer than this share of the image to an edge may be cut off.",
+        description="A face closer than this share of the image to an edge may be cut off. "
+        "Also applies to the owner's enrolment images.",
     )
     max_turned: float = setting(
         0.4,

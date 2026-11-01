@@ -10,15 +10,19 @@ SpeechBrain ECAPA, 0.75 suits Resemblyzer. After changing a model, enrol and cal
 
 ## Run it
 
+On the dashboard's [Calibration](/dashboard/calibration) page while the robot runs, or in
+the terminal with the robot stopped:
+
 ```bash
 uv run pasr calibrate voice --others 1 --apply   # owner, then one other person, live
 uv run pasr calibrate face  --others 2           # shows the result, asks before saving
-uv run pasr calibrate face  --others 0           # owner only: a conservative margin
+uv run pasr calibrate face  --others 0           # owner only: at most the model's default
 uv run pasr calibrate voice --live-view          # watch each sample's similarity
 ```
 
 The robot must be enrolled first. It captures as many samples per person as enrolment uses
-(`--samples` to change that), scores each one **exactly** as the reminder flow would
+(`--samples` to change that; for a live face, per pose: the robot guides each person through
+the same poses as enrolment), scores each one **exactly** as the reminder flow would
 (`identity.identify` with the configured aggregate), prints the distributions and suggests a
 threshold. `--apply` saves it without asking; a running robot applies it on restart.
 
@@ -37,7 +41,7 @@ in real time. The recordings stay where they are; nothing is copied.
 | Measured | Suggested threshold |
 |---|---|
 | Owner and at least one other person | The point that balances false accepts and false rejects (the equal error rate). |
-| Owner only | 0.10 below the owner's 10th-percentile score: conservative, so strangers rarely pass. |
+| Owner only | 0.10 below the owner's 10th-percentile score, but never above the model's recommended threshold (0.40 for InsightFace): the owner's scores show how low it may go, not how high. Above it, the owner seen in other light or from the side would count as a stranger. |
 
 The result also gets a verdict from the equal error rate: **good** (≤ 5%), **fair** (≤ 15%),
 **poor**, or **insufficient** with fewer than 5 owner samples.

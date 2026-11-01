@@ -18,8 +18,10 @@ a threshold that suits one model means nothing for another model's embeddings.
   robot's clock by default so `pasr run` behaves like a room.
 - **Calibration** scores fresh samples of the owner and of other people against the enrolled
   owner exactly as `identity.identify` does at runtime (`domain/calibration.py`), suggests the
-  threshold that balances false accepts and false rejects (or a conservative margin below the
-  owner's scores when no other person was captured), and stores **only that number**
+  threshold that balances false accepts and false rejects (or, when no other person was
+  captured, a margin below the owner's scores but never above the plugin's recommended
+  threshold, since the owner's scores alone cannot show how high it may go), and stores **only
+  that number**
   (`identity.face_threshold` / `voice_threshold`). Other people's embeddings never leave the
   capture step. Each plugin declares a `recommended_threshold` as a starting point. (The
   warning shown when the configured threshold was far from it was removed on 2026-11-01.)

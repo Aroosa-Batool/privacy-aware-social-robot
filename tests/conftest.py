@@ -120,6 +120,11 @@ def stand_in_robot(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("pasr.hardware.check.build_hardware", build)
     for kind, choice in STAND_IN_PERCEPTION.items():
         monkeypatch.setenv(f"PASR__PERCEPTION__{kind.upper()}__PLUGIN", choice["plugin"])
+    # the system clock really waits: guided face enrolment at test speed
+    monkeypatch.setattr("pasr.orchestration.enrollment.SETTLE_SECONDS", 0.0)
+    monkeypatch.setattr("pasr.orchestration.enrollment.SAMPLE_INTERVAL_S", 0.0)
+    monkeypatch.setattr("support.devices.SECONDS_PER_WORD", 0.0)
+    monkeypatch.setattr("support.devices.FRAME_INTERVAL_S", 0.02)
 
 
 @pytest.fixture(autouse=True)

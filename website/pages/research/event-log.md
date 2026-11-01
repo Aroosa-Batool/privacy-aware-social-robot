@@ -26,6 +26,8 @@ table, `event_log`, with the columns `ts`, `session_id`, `type`, `reminder_id`, 
 | `reminder.delivered` | Said or shown on the watch. | `channel`, `late_seconds` |
 | `reminder.missed` | Found too late, or the watch was unreachable at the due time. | `reason` |
 | `owner.enrolled` | Face or voice enrolled. | `modality`, `samples`, `plugin` |
+| `owner.enrolment_failed` | Face or voice enrolment stored nothing. | `modality`, `reason`, `pose` (face) or `samples` (voice) |
+| `owner.face_pose` | One pose of a face enrolment, stored or not. | `pose`, `samples`, `frames`, `no_face`, `several` (faces), `unusable`, `reason` (commonest reason a frame went unused), `turned` and `tilt` (medians, see ADR 0011), `seconds` |
 | `identity.calibrated` | A threshold was saved by calibration. | `modality`, `plugin`, `threshold`, `count` |
 | `settings.changed` | Settings were saved. | `count` (settings changed) |
 
@@ -33,8 +35,9 @@ table, `event_log`, with the columns `ts`, `session_id`, `type`, `reminder_id`, 
 
 `EventBus.emit` accepts only these keys, with scalar values and strings of at most 80 characters,
 and raises otherwise: `answer`, `channel`, `count`, `decision`, `direction`, `error_type`, `faces`,
-`identity`, `late_seconds`, `modality`, `mode`, `origin`, `plugin`, `policy`, `present`, `ready`,
-`reason`, `samples`, `seconds`, `sensitive`, `similarity`, `threshold`. Tests check that reminder
+`frames`, `identity`, `late_seconds`, `modality`, `mode`, `no_face`, `origin`, `plugin`,
+`policy`, `pose`, `present`, `ready`, `reason`, `samples`, `seconds`, `sensitive`, `several`,
+`similarity`, `threshold`, `tilt`, `turned`, `unusable`. Tests check that reminder
 titles never appear in the log.
 
 ## Get it out

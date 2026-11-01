@@ -47,9 +47,11 @@ def identity_embedding(
     noise: float,
     rng: np.random.Generator,
     clarity: float = 1.0,
+    view: str = "",
 ) -> Embedding:
     """``clarity`` below 1 (a cut-off or turned-away face) pulls the embedding towards a fixed
-    "unclear view" of the person: the same in every such frame, less and less like them."""
+    unclear ``view`` of the person: the same in every frame with that view, less and less like
+    them."""
     if tag is None:
         base = rng.standard_normal(dim)  # unknown speaker: a fresh random identity
         base /= np.linalg.norm(base)
@@ -57,7 +59,8 @@ def identity_embedding(
         base = _fixed_direction(f"{model}:{tag}", dim)
         if clarity < 1:
             weight = clarity**2
-            base = weight * base + (1 - weight) * _fixed_direction(f"{model}:{tag}:unclear", dim)
+            unclear = _fixed_direction(f"{model}:{tag}:unclear:{view}", dim)
+            base = weight * base + (1 - weight) * unclear
             base /= np.linalg.norm(base)
     return Embedding.of(base + noise * rng.standard_normal(dim) / np.sqrt(dim), model)
 
@@ -99,6 +102,7 @@ class FakeFaceEmbedder:
                     noise=self.params.noise,
                     rng=self._rng,
                     clarity=face.clarity,
+                    view=face.view,
                 ),
                 score=0.95 * face.clarity,
                 box=face.box,

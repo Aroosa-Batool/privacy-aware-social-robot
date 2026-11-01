@@ -35,7 +35,7 @@ from pasr.orchestration.offline import open_offline
 from pasr.orchestration.runtime import Runtime, setup_warnings
 from pasr.paths import PROJECT_ROOT, resolve
 from pasr.perception import models as model_weights
-from pasr.perception.registry import PluginKind, PluginUnavailableError
+from pasr.perception.registry import PluginKind, PluginUnavailableError, recommended_threshold
 from pasr.settings.loader import (
     as_dict,
     clear_overrides,
@@ -195,10 +195,12 @@ POLICY_OPTIONS = {
 
 def _progress_line(progress: EnrollProgress) -> None:
     detail = f"{progress.collected}/{progress.wanted} samples"
+    if progress.pose is not None:
+        detail += f" · pose: {progress.pose}"
     if progress.modality is Biometric.FACE:
         detail += (
             f" · {progress.frames} frames (no face in {progress.no_face}, "
-            f"several in {progress.many_faces})"
+            f"several in {progress.many_faces}, not usable {progress.unusable})"
         )
     else:
         detail += f" · {progress.frames} speech segments heard"
@@ -221,7 +223,10 @@ async def _enroll(settings: Settings, *, face: bool, voice: bool) -> list[str]:
             typer.echo(FACE_GUIDANCE)
             count = await runtime.enrollment.enroll_face(progress=_progress_line)
             typer.echo("")
-            done.append(f"face: {count} samples")
+            identity = settings.identity
+            wanted = identity.enroll_face_samples * len(identity.enroll_face_poses)
+            missed = "" if count >= wanted else f" of {wanted} (some poses missed: run it again)"
+            done.append(f"face: {count} samples{missed}")
     finally:
         await runtime.stop()
     return done
@@ -321,7 +326,6 @@ async def _calibrate(
 ) -> tuple[list[float], list[float], Calibration, Runtime]:
     runtime = _robot(settings, session_id="calibrate")
     identity = settings.identity
-    timeout = identity.enroll_timeout_seconds
     mic = settings.hardware.microphone
 
     def source(path: Path) -> Any:
@@ -333,19 +337,24 @@ async def _calibrate(
 
     async def capture(person: str, path: Path | None) -> list[float]:
         if path is None:
-            action = "look at the camera" if modality is Biometric.FACE else "speak"
-            typer.prompt(f"{person}: press Enter, then {action} for a few seconds", default="")
+            action = (
+                "do what the robot says (look straight, then turn and tilt your head)"
+                if modality is Biometric.FACE
+                else "speak for a few seconds"
+            )
+            typer.prompt(f"{person}: press Enter, then {action}", default="")
         try:
             if modality is Biometric.VOICE:
                 return await runtime.calibration.score_voice(
                     samples=samples,
-                    timeout_s=timeout,
+                    timeout_s=identity.enroll_timeout_seconds,
                     microphone=source(path) if path else None,
                     progress=_progress_line,
                 )
             return await runtime.calibration.score_face(
                 samples=samples,
-                timeout_s=timeout,
+                timeout_s=identity.enroll_face_pose_seconds,
+                guided=path is None,
                 camera=source(path) if path else None,
                 progress=_progress_line,
             )
@@ -363,7 +372,10 @@ async def _calibrate(
                 impostor = []
                 for k in range(1, others + 1):
                     impostor += await capture(f"Other person {k}/{others}", None)
-            return genuine, impostor, calibrate_scores(genuine, impostor or None), runtime
+            kind = PluginKind.FACE if modality is Biometric.FACE else PluginKind.SPEAKER
+            ceiling = recommended_threshold(kind, settings.perception.choice(kind).plugin)
+            result = calibrate_scores(genuine, impostor or None, ceiling=ceiling)
+            return genuine, impostor, result, runtime
         finally:
             await runtime.stop()
 
@@ -377,7 +389,8 @@ def calibrate(
         int, typer.Option(help="How many other people to capture live (0 = owner only).")
     ] = 1,
     samples: Annotated[
-        int | None, typer.Option(help="Samples per person (default: the enrolment count).")
+        int | None,
+        typer.Option(help="Samples per person; live faces: per pose (default: as enrolment)."),
     ] = None,
     apply: Annotated[bool, typer.Option("--apply", help="Save the suggested threshold.")] = False,
     wav: Annotated[
@@ -401,9 +414,11 @@ def calibrate(
         raise _fail("--wav goes with 'voice' and --images with 'face'.")
     identity = settings.identity
     count = samples or (
-        identity.enroll_face_samples
-        if modality is Biometric.FACE
-        else identity.enroll_voice_samples
+        identity.enroll_voice_samples
+        if modality is Biometric.VOICE
+        else identity.enroll_face_samples * len(identity.enroll_face_poses)
+        if files
+        else identity.enroll_face_samples
     )
     try:
         genuine, impostor, result, runtime = asyncio.run(

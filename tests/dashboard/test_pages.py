@@ -12,7 +12,7 @@ pytest.importorskip("streamlit")
 from streamlit.testing.v1 import AppTest
 
 from pasr.dashboard import state
-from pasr.domain.enums import Biometric, DisclosurePolicy
+from pasr.domain.enums import Biometric, Direction, DisclosurePolicy
 from pasr.orchestration.enrollment import FACE_GUIDANCE
 from pasr.settings.loader import load_settings, read_overrides
 from support.live import Windows
@@ -60,7 +60,39 @@ def test_onboarding_and_enrolment(data_dir: Path):
     assert any(c.value == FACE_GUIDANCE for c in app.caption)
     next(b for b in app.button if b.label == "Capture face").click().run()
     assert not app.exception
-    assert state.offline().repos.owner.enrollment()[Biometric.FACE][0] == 5
+    assert state.offline().repos.owner.enrollment()[Biometric.FACE][0] == 20  # 4 of 5 poses
+
+
+def test_calibration_measures_you_and_others_then_saves_the_line(data_dir: Path):
+    page = DASHBOARD / "views" / "calibration.py"
+    app = run(page)
+    assert [e.label for e in app.expander] == ["What is calibration?", "How to do it"]
+    assert any("Enrol your face on the Profile page first" in i.value for i in app.info)
+
+    state.offline().repos.owner.save("Aroosa", state.now())
+    state.get_handle().start()
+    state.get_handle().call(lambda rt: rt.enrollment.enroll_face(), timeout=60)
+    app = run(page)
+    assert not app.slider  # nothing measured yet: no line to choose
+    next(b for b in app.button if b.label == "Measure me").click().run()
+    assert not app.exception
+    assert any(m.label == "Samples of you counted as you" for m in app.metric)
+
+    room = state.on_robot(lambda rt: rt.hardware.room)
+    state.on_robot(lambda rt: room.set_faces(Direction.FRONT, ["stranger"]))
+    next(b for b in app.button if b.label == "Measure another person").click().run()
+    state.on_robot(lambda rt: room.set_faces(Direction.FRONT, ["owner"]))
+    assert not app.exception
+    values = {m.label: m.value for m in app.metric}
+    assert values["Samples of you counted as you"] == "20 of 20"
+    assert values["Samples of others counted as you"] == "0 of 20"
+    line = app.slider[0].value
+    assert 0 < line < 1
+
+    next(b for b in app.button if b.label.startswith("Save ")).click().run()
+    assert not app.exception
+    assert read_overrides(data_dir)["identity"]["face_threshold"] == pytest.approx(line)
+    assert state.on_robot(lambda rt: rt.settings.identity.face_threshold) == pytest.approx(line)
 
 
 def test_typed_reminder_asks_for_a_date(data_dir: Path):
@@ -354,7 +386,7 @@ def test_deleting_enrolled_data_needs_the_confirm_button(data_dir: Path):
     state.get_handle().start()
     app = run(DASHBOARD / "views" / "profile.py")
     next(b for b in app.button if b.label == "Capture face").click().run()
-    assert state.offline().repos.owner.enrollment()[Biometric.FACE][0] == 5
+    assert state.offline().repos.owner.enrollment()[Biometric.FACE][0] == 20  # 4 of 5 poses
 
     delete = next(b for b in app.button if b.label == "Delete face data")
     assert delete.key == "confirm-delete-face"  # the button inside the confirm panel
@@ -583,10 +615,10 @@ def test_each_breaker_is_amber_where_it_turned_the_reminder():
         "done: heard someone",  # detection working: green, saying what it found
         "pending",
         "done",
-        "turned: said no",
+        "done: said no",  # the owner's decision, followed: green, saying what it was
         "done: to watch",
     ]
-    assert "via-" not in route(said_no)[5][0]  # into Decide: a plain green arch
+    assert not any("via-" in classes for classes, _ in route(said_no))  # no dashed lines
     assert summary(said_no) == (
         "last run: someone other than the owner was heard. The owner said no on the watch. "
         "It was sent to the watch."
@@ -633,7 +665,7 @@ def test_each_breaker_is_amber_where_it_turned_the_reminder():
     )
     assert marks(declined)[4:] == [
         "done: saw someone",
-        "turned: declined before",
+        "done: declined before",
         "pending",
         "done: to watch",
     ]

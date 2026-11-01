@@ -19,7 +19,11 @@ from pasr.dashboard.state import (
     settings,
 )
 from pasr.domain.enums import Biometric, DetectionModality, DisclosurePolicy
-from pasr.orchestration.enrollment import FACE_GUIDANCE, VOICE_GUIDANCE
+from pasr.orchestration.enrollment import (
+    FACE_GUIDANCE,
+    VOICE_GUIDANCE,
+    face_enrolment_seconds,
+)
 from pasr.orchestration.runtime import Runtime
 from pasr.settings.loader import (
     as_dict,
@@ -128,7 +132,11 @@ def enrolment_step(number: int, modality: Biometric, title: str, what: str) -> N
         seconds = current.identity.enroll_voice_samples * 4
         guidance = FACE_GUIDANCE if modality is Biometric.FACE else VOICE_GUIDANCE
         st.caption(guidance.format(seconds=seconds))
-        timeout = current.identity.enroll_timeout_seconds + 30
+        timeout = (
+            face_enrolment_seconds(current.identity)
+            if modality is Biometric.FACE
+            else current.identity.enroll_timeout_seconds
+        ) + 30
         with st.container(horizontal=True, gap="small"):
             capture = st.button(
                 f"Capture {what}",
@@ -149,7 +157,16 @@ def enrolment_step(number: int, modality: Biometric, title: str, what: str) -> N
                     lambda: handle.call(lambda rt: _enroll(rt, modality), timeout=timeout),
                 )
             if samples is not None:
-                notify(f"Stored {samples} {what} embeddings.", "success")
+                identity = current.identity
+                wanted = identity.enroll_face_samples * len(identity.enroll_face_poses)
+                if modality is Biometric.FACE and samples < wanted:
+                    notify(
+                        f"Stored {samples} of {wanted} face embeddings: the robot could not "
+                        "see every pose (it said which). Capture again to add it.",
+                        "warning",
+                    )
+                else:
+                    notify(f"Stored {samples} {what} embeddings.", "success")
                 rerun()
         if delete:
             data.repos.owner.delete_embeddings(modality)

@@ -1,11 +1,11 @@
 """The reminder pipeline as a strip of stages, highlighting where the current flow is.
 
 Each stage says its state in words as well as colour and a mark, so it reads the same for
-colour-blind viewers and screen readers: done ✓ in green; ! in amber where something kept the
-reminder from being said out loud (the owner away, a bystander declined before, a "no" or no
-answer on the watch, the owner gone by the due time); failed ✕ in red; now in blue; skipped or
-not reached in grey. A green stage that found or decided something says what (someone heard or
-seen, a "yes"), and Deliver says where the reminder went. Arrows give the direction. The route
+colour-blind viewers and screen readers: done ✓ in green; ! in amber where the flow did not go
+as it should (the owner away, no answer on the watch, the owner gone by the due time); failed ✕
+in red; now in blue; skipped or not reached in grey. A green stage that found or decided
+something says what (someone heard or seen, the owner's "yes" or "no", now or before), and
+Deliver says where the reminder went. Arrows give the direction. The route
 taken is green, dashed amber or red where it leaves an amber or red stage; where the flow
 skipped stages it arches over them instead of running through them.
 
@@ -169,9 +169,9 @@ def stage_of(state: DueState) -> str:
 
 
 def outcome(name: str, flow: FlowView, visited: set[DueState]) -> Stage | None:
-    """What the stage ``name``, done, found or decided, if worth saying: amber when it kept the
-    reminder from being said out loud, green when the flow went on as usual (a bystander found
-    is detection working; whether it matters is for Decide and Consent)."""
+    """What the stage ``name``, done, found or decided, if worth saying: amber when the flow did
+    not go as it should, green when it went on as designed (a bystander found is detection
+    working; the owner's "no", now or remembered, is their decision being followed)."""
     if name == "Presence" and S.OWNER_AWAY in visited:
         why = "the owner's watch did not answer, so the owner counted as away"
         return Stage(name, "turned", "away", why)
@@ -182,12 +182,12 @@ def outcome(name: str, flow: FlowView, visited: set[DueState]) -> Stage | None:
     if name == "Decide" and S.CHECK_MEMORY in visited and S.AWAITING_CONSENT not in visited:
         if flow.planned == DeliveryChannel.WATCH:
             why = "the owner had declined for them before"
-            return Stage(name, "turned", "declined before", why)
+            return Stage(name, "done", "declined before", why)
         return Stage(name, "done", "allowed before", "the owner had allowed them before")
     if name == "Consent" and flow.answer == WatchAnswer.YES:
         return Stage(name, "done", "said yes", "the owner said yes on the watch")
     if name == "Consent" and flow.answer == WatchAnswer.NO:
-        return Stage(name, "turned", "said no", "the owner said no on the watch")
+        return Stage(name, "done", "said no", "the owner said no on the watch")
     if name == "Consent" and flow.answer == WatchAnswer.TIMEOUT:
         return Stage(name, "turned", "no answer", "the owner did not answer on the watch")
     return None

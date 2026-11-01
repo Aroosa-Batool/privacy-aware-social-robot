@@ -36,6 +36,8 @@ class EventType(StrEnum):
     REMINDER_DELIVERED = "reminder.delivered"
     REMINDER_MISSED = "reminder.missed"
     OWNER_ENROLLED = "owner.enrolled"
+    OWNER_ENROLMENT_FAILED = "owner.enrolment_failed"
+    FACE_POSE_CAPTURED = "owner.face_pose"
     THRESHOLD_CALIBRATED = "identity.calibrated"
     SETTINGS_CHANGED = "settings.changed"
 
@@ -51,21 +53,28 @@ ALLOWED_PAYLOAD_KEYS = frozenset(
         "direction",
         "error_type",
         "faces",
+        "frames",
         "identity",
         "late_seconds",
         "modality",
         "mode",
+        "no_face",
         "origin",
         "plugin",
         "policy",
+        "pose",
         "present",
         "ready",
         "reason",
         "samples",
         "seconds",
         "sensitive",
+        "several",
         "similarity",
         "threshold",
+        "tilt",
+        "turned",
+        "unusable",
     }
 )
 MAX_STRING_LENGTH = 80
