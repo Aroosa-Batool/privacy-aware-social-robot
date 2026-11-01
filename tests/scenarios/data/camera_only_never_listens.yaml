@@ -1,0 +1,24 @@
+name: camera_only_never_listens
+description: Camera-only detection scans the room without listening; the microphone stays off.
+settings:
+  privacy: {detection_modality: camera_only, disclosure_policy: always_ask}
+episodes:
+  - reminder: {title: Doctor appointment, due_in_minutes: 10}
+    faces: {front: [owner], left: [stranger_b]}  # a silent stranger, seen by the camera
+    watch: {answer: "no"}
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, SCANNING, VISUAL_BYSTANDER, CHECK_MEMORY,
+               AWAITING_CONSENT, WAIT_FOR_DUE, DISCLOSE_WATCH, DONE]
+      channel: watch
+      camera_used: true
+      microphone_used: false
+  - reminder: {title: Doctor appointment, due_in_minutes: 10}
+    faces: {front: [owner]}
+    voices:
+      - {at_s: 500, speaker: stranger_b, seconds: 4}  # a stranger who only talks: not heard
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, SCANNING, NO_BYSTANDER, WAIT_FOR_DUE,
+               DISCLOSE_SPEAK, DONE]
+      channel: spoken
+      camera_used: true
+      microphone_used: false

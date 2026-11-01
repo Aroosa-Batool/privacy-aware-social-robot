@@ -1,0 +1,57 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+/website/_site/
+
+# Runtime data: database, local settings, Ohbot files, models , never committed. Anchored to the
+# repository root: tests/scenarios/data/ and tests/models/ are source code.
+/data/
+/.ohbot/
+**/ohbotData/
+ohbotspeech.wav
+/models/
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+
+# Media must never enter the repository (privacy)
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.mp4
+*.mov
+*.avi
+*.jpg
+*.jpeg
+*.png
+*.heic
+*.npy
+*.npz
+!docs/**/*.png
+
+# Secrets and machine-specific settings
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+
+# Streamlit agent skills (environment-specific symlinks)
+.agents/skills/developing-with-streamlit
+.claude/skills/developing-with-streamlit

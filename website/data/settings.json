@@ -1,0 +1,750 @@
+[
+  {
+    "key": "privacy.detection_modality",
+    "group": "privacy",
+    "default": "audio_and_camera",
+    "tier": "basic",
+    "limits": [],
+    "description": "Sensors the robot may use to look for bystanders before a sensitive reminder. With 'audio_only' the camera is never switched on; with 'camera_only' the microphone is never used for it (reminders set by voice still use it)."
+  },
+  {
+    "key": "privacy.disclosure_policy",
+    "group": "privacy",
+    "default": "always_ask",
+    "tier": "basic",
+    "limits": [],
+    "description": "What to do when someone else may hear a sensitive reminder: always say it, always ask on the watch, or ask once per bystander and remember the answer."
+  },
+  {
+    "key": "reminder.wake_lead_minutes",
+    "group": "reminder",
+    "default": 7.0,
+    "tier": "basic",
+    "limits": [
+      "≥ 0",
+      "≤ 120"
+    ],
+    "description": "Minutes before a sensitive reminder is due that the robot wakes up to check for bystanders. With the camera only, it does not listen, so it wakes the listening window later and scans the room at the same moment. With less time than this left (a quick test, or any reminder set for a few minutes from now), microphone and camera split it: 70% listening, then a scan."
+  },
+  {
+    "key": "reminder.listen_window_minutes",
+    "group": "reminder",
+    "default": 5.0,
+    "tier": "basic",
+    "limits": [
+      "> 0",
+      "≤ 120"
+    ],
+    "description": "How long the robot listens for voices after waking up."
+  },
+  {
+    "key": "reminder.default_time",
+    "group": "reminder",
+    "default": "00:00",
+    "tier": "basic",
+    "limits": [],
+    "description": "Time used when a reminder names a date but no time."
+  },
+  {
+    "key": "reminder.min_listen_seconds",
+    "group": "reminder",
+    "default": 15.0,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 600"
+    ],
+    "description": "Minimum listening time when the robot starts late (for example a reminder added only a minute before it is due)."
+  },
+  {
+    "key": "reminder.listen_until_due",
+    "group": "reminder",
+    "default": false,
+    "tier": "advanced",
+    "limits": [],
+    "description": "Keep listening right up to the due time instead of stopping after the listening window."
+  },
+  {
+    "key": "reminder.poll_interval_seconds",
+    "group": "reminder",
+    "default": 10.0,
+    "tier": "advanced",
+    "limits": [
+      "> 0",
+      "≤ 600"
+    ],
+    "description": "How often the scheduler re-reads reminders from the database."
+  },
+  {
+    "key": "reminder.missed_grace_minutes",
+    "group": "reminder",
+    "default": 10.0,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0"
+    ],
+    "description": "A reminder found more than this long after its due time is marked missed instead of delivered late."
+  },
+  {
+    "key": "reminder.scan_if_only_owner_heard",
+    "group": "reminder",
+    "default": true,
+    "tier": "advanced",
+    "limits": [],
+    "description": "With the camera allowed, also scan the room when only the owner's voice was heard (a silent bystander may be present). Off: scan only after silence."
+  },
+  {
+    "key": "consent.timeout_seconds",
+    "group": "consent",
+    "default": 60.0,
+    "tier": "basic",
+    "limits": [
+      "> 0",
+      "≤ 600"
+    ],
+    "description": "How long to wait for an answer on the watch. No answer means the reminder goes to the watch and nothing is remembered."
+  },
+  {
+    "key": "consent.prompt_text",
+    "group": "consent",
+    "default": "I noticed someone is with you. Should I say your reminder out loud?",
+    "tier": "advanced",
+    "limits": [
+      "min length 1",
+      "max length 160"
+    ],
+    "description": "Question shown on the watch."
+  },
+  {
+    "key": "identity.voice_threshold",
+    "group": "identity",
+    "default": 0.35,
+    "tier": "advanced",
+    "limits": [
+      "≥ -1",
+      "≤ 1"
+    ],
+    "description": "Cosine similarity at or above which a voice is treated as the owner (or a known bystander). Model-specific: the default suits speechbrain_ecapa; calibrate with `pasr calibrate voice`."
+  },
+  {
+    "key": "identity.face_threshold",
+    "group": "identity",
+    "default": 0.4,
+    "tier": "advanced",
+    "limits": [
+      "≥ -1",
+      "≤ 1"
+    ],
+    "description": "Cosine similarity at or above which a face is treated as the owner (or a known bystander). Model-specific: the default suits insightface; calibrate with `pasr calibrate face`."
+  },
+  {
+    "key": "identity.min_voice_segment_seconds",
+    "group": "identity",
+    "default": 1.0,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 30"
+    ],
+    "description": "Shorter speech segments are ignored; they give unreliable embeddings."
+  },
+  {
+    "key": "identity.min_nonowner_segments",
+    "group": "identity",
+    "default": 1,
+    "tier": "advanced",
+    "limits": [
+      "≥ 1",
+      "≤ 20"
+    ],
+    "description": "Speech segments from someone other than the owner needed to decide that a bystander is present."
+  },
+  {
+    "key": "identity.enroll_face_samples",
+    "group": "identity",
+    "default": 5,
+    "tier": "advanced",
+    "limits": [
+      "≥ 1",
+      "≤ 50"
+    ],
+    "description": "Face images used to enrol the owner."
+  },
+  {
+    "key": "identity.enroll_voice_samples",
+    "group": "identity",
+    "default": 3,
+    "tier": "advanced",
+    "limits": [
+      "≥ 1",
+      "≤ 20"
+    ],
+    "description": "Speech segments used to enrol the owner."
+  },
+  {
+    "key": "identity.enroll_timeout_seconds",
+    "group": "identity",
+    "default": 30.0,
+    "tier": "advanced",
+    "limits": [
+      "> 0",
+      "≤ 300"
+    ],
+    "description": "Give up enrolment if not enough samples arrive within this time."
+  },
+  {
+    "key": "identity.aggregate",
+    "group": "identity",
+    "default": "max",
+    "tier": "advanced",
+    "limits": [],
+    "description": "Compare with several enrolled samples by the best single match (max) or by their averaged embedding (mean)."
+  },
+  {
+    "key": "vad.speech_threshold",
+    "group": "vad",
+    "default": 0.5,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 1"
+    ],
+    "description": "Voice-activity probability at or above which audio counts as speech."
+  },
+  {
+    "key": "vad.min_speech_ms",
+    "group": "vad",
+    "default": 250,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 5000"
+    ],
+    "description": "Shorter speech bursts are ignored."
+  },
+  {
+    "key": "vad.min_silence_ms",
+    "group": "vad",
+    "default": 300,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 5000"
+    ],
+    "description": "Silence that ends a speech segment."
+  },
+  {
+    "key": "vad.max_segment_seconds",
+    "group": "vad",
+    "default": 10.0,
+    "tier": "advanced",
+    "limits": [
+      "> 0",
+      "≤ 60"
+    ],
+    "description": "Long speech is split into segments."
+  },
+  {
+    "key": "scan.positions",
+    "group": "scan",
+    "default": [
+      "left",
+      "front",
+      "right"
+    ],
+    "tier": "basic",
+    "limits": [
+      "min length 1"
+    ],
+    "description": "Head directions the robot looks at when scanning the room with the camera."
+  },
+  {
+    "key": "scan.settle_seconds",
+    "group": "scan",
+    "default": 0.6,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 10"
+    ],
+    "description": "Wait after moving the head before looking."
+  },
+  {
+    "key": "scan.frames_per_position",
+    "group": "scan",
+    "default": 3,
+    "tier": "advanced",
+    "limits": [
+      "≥ 1",
+      "≤ 30"
+    ],
+    "description": "Camera frames analysed per head direction."
+  },
+  {
+    "key": "scan.head_speed",
+    "group": "scan",
+    "default": 5,
+    "tier": "advanced",
+    "limits": [
+      "≥ 1",
+      "≤ 10"
+    ],
+    "description": "Ohbot motor speed."
+  },
+  {
+    "key": "scan.follow.enabled",
+    "group": "scan",
+    "default": false,
+    "tier": "basic",
+    "limits": [],
+    "description": "Follow a face that is not in full view (cut off, too small, unclear or turned away) and matches nobody: the head turns and nods towards it until it is, then the face is compared with the owner and the remembered bystanders. Off: the robot only looks in the fixed directions."
+  },
+  {
+    "key": "scan.follow.seconds",
+    "group": "scan",
+    "default": 5.0,
+    "tier": "basic",
+    "limits": [
+      "> 0",
+      "≤ 30"
+    ],
+    "description": "Longest time the head follows one face; the camera stays on meanwhile. If the face is still not in full view, its best view so far is compared."
+  },
+  {
+    "key": "scan.follow.min_face_px",
+    "group": "scan",
+    "default": 60,
+    "tier": "advanced",
+    "limits": [
+      "≥ 10",
+      "≤ 2000"
+    ],
+    "description": "A face narrower than this (in camera pixels) is too small to compare well."
+  },
+  {
+    "key": "scan.follow.min_score",
+    "group": "scan",
+    "default": 0.7,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 1"
+    ],
+    "description": "Detector confidence a face needs to count as in full view."
+  },
+  {
+    "key": "scan.follow.edge_margin",
+    "group": "scan",
+    "default": 0.03,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 0.3"
+    ],
+    "description": "A face closer than this share of the image to an edge may be cut off."
+  },
+  {
+    "key": "scan.follow.max_turned",
+    "group": "scan",
+    "default": 0.4,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 1"
+    ],
+    "description": "How far a face may be turned away: 0 faces the camera, about 0.5 is half profile. Needs a face algorithm that finds the eyes and nose (insightface does)."
+  },
+  {
+    "key": "scan.follow.turn_gain",
+    "group": "scan",
+    "default": 2.5,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 10"
+    ],
+    "description": "HEADTURN units the head turns for a face at the side edge of the image (less for one nearer the centre). Overshoots: lower it; creeps: raise it."
+  },
+  {
+    "key": "scan.follow.nod_gain",
+    "group": "scan",
+    "default": 1.5,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 10"
+    ],
+    "description": "HEADNOD units the head nods for a face at the top or bottom edge of the image; 0 never nods."
+  },
+  {
+    "key": "scan.follow.invert_turn",
+    "group": "scan",
+    "default": false,
+    "tier": "advanced",
+    "limits": [],
+    "description": "Turn the other way: switch on if the head turns away from the face."
+  },
+  {
+    "key": "scan.follow.invert_nod",
+    "group": "scan",
+    "default": false,
+    "tier": "advanced",
+    "limits": [],
+    "description": "Nod the other way: switch on if the head nods away from the face."
+  },
+  {
+    "key": "perception.face",
+    "group": "perception",
+    "default": {
+      "plugin": "insightface",
+      "params": {}
+    },
+    "tier": "advanced",
+    "limits": [],
+    "description": "Face detection and embedding."
+  },
+  {
+    "key": "perception.speaker",
+    "group": "perception",
+    "default": {
+      "plugin": "speechbrain_ecapa",
+      "params": {}
+    },
+    "tier": "advanced",
+    "limits": [],
+    "description": "Speaker (voice) embedding."
+  },
+  {
+    "key": "perception.vad",
+    "group": "perception",
+    "default": {
+      "plugin": "silero",
+      "params": {}
+    },
+    "tier": "advanced",
+    "limits": [],
+    "description": "Voice-activity detection."
+  },
+  {
+    "key": "perception.stt",
+    "group": "perception",
+    "default": {
+      "plugin": "faster_whisper",
+      "params": {}
+    },
+    "tier": "advanced",
+    "limits": [],
+    "description": "Speech-to-text for voice reminders."
+  },
+  {
+    "key": "perception.sensitivity",
+    "group": "perception",
+    "default": {
+      "plugin": "zero_shot",
+      "params": {}
+    },
+    "tier": "advanced",
+    "limits": [],
+    "description": "Decides whether a reminder is sensitive."
+  },
+  {
+    "key": "perception.datetime_parser",
+    "group": "perception",
+    "default": {
+      "plugin": "dateparser",
+      "params": {}
+    },
+    "tier": "advanced",
+    "limits": [],
+    "description": "Finds the date and time in a reminder."
+  },
+  {
+    "key": "hardware.ohbot.port",
+    "group": "hardware",
+    "default": "auto",
+    "tier": "basic",
+    "limits": [],
+    "description": "Serial port of the Ohbot (e.g. /dev/cu.usbmodem101) or 'auto'."
+  },
+  {
+    "key": "hardware.ohbot.turn_left",
+    "group": "hardware",
+    "default": 2.0,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 10"
+    ],
+    "description": "HEADTURN position for 'left'."
+  },
+  {
+    "key": "hardware.ohbot.turn_front",
+    "group": "hardware",
+    "default": 5.0,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 10"
+    ],
+    "description": "HEADTURN position for 'front'."
+  },
+  {
+    "key": "hardware.ohbot.turn_right",
+    "group": "hardware",
+    "default": 8.0,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 10"
+    ],
+    "description": "HEADTURN position for 'right'."
+  },
+  {
+    "key": "hardware.ohbot.move_seconds",
+    "group": "hardware",
+    "default": 0.8,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 5"
+    ],
+    "description": "Time a full left-to-right turn takes at speed 5; the head waits this long (scaled by distance and speed) before the camera looks."
+  },
+  {
+    "key": "hardware.speaker.backend",
+    "group": "hardware",
+    "default": "ohbot",
+    "tier": "advanced",
+    "limits": [],
+    "description": "Ohbot text-to-speech with lip sync, or plain macOS 'say'."
+  },
+  {
+    "key": "hardware.speaker.voice",
+    "group": "hardware",
+    "default": null,
+    "tier": "advanced",
+    "limits": [],
+    "description": "macOS voice name for the 'macos_say' backend."
+  },
+  {
+    "key": "hardware.speaker.output_device",
+    "group": "hardware",
+    "default": null,
+    "tier": "basic",
+    "limits": [],
+    "description": "Speaker the robot's voice plays on, e.g. 'MacBook Air Speakers' (see `pasr hardware list`). Empty uses the macOS default output, which AirPods or a display can take over."
+  },
+  {
+    "key": "hardware.camera.name",
+    "group": "hardware",
+    "default": "C615",
+    "tier": "basic",
+    "limits": [],
+    "description": "Part of the head camera's name, e.g. 'C615' (see `pasr hardware list`). The camera is found by name each time it opens, so the laptop's own camera or an iPhone is never used instead; empty uses the index (macOS only finds names)."
+  },
+  {
+    "key": "hardware.camera.index",
+    "group": "hardware",
+    "default": 0,
+    "tier": "basic",
+    "limits": [
+      "≥ 0",
+      "≤ 16"
+    ],
+    "description": "OpenCV camera index, used when name is empty."
+  },
+  {
+    "key": "hardware.camera.width",
+    "group": "hardware",
+    "default": 640,
+    "tier": "advanced",
+    "limits": [
+      "≥ 160",
+      "≤ 3840"
+    ],
+    "description": "Capture width."
+  },
+  {
+    "key": "hardware.camera.height",
+    "group": "hardware",
+    "default": 480,
+    "tier": "advanced",
+    "limits": [
+      "≥ 120",
+      "≤ 2160"
+    ],
+    "description": "Capture height."
+  },
+  {
+    "key": "hardware.camera.source",
+    "group": "hardware",
+    "default": "device",
+    "tier": "advanced",
+    "limits": [],
+    "description": "'device' is the USB camera; 'images' reads a researcher-supplied folder of images in name order (research use; nothing is ever written)."
+  },
+  {
+    "key": "hardware.camera.image_dir",
+    "group": "hardware",
+    "default": null,
+    "tier": "advanced",
+    "limits": [],
+    "description": "Folder of images for source 'images'."
+  },
+  {
+    "key": "hardware.camera.warmup_frames",
+    "group": "hardware",
+    "default": 5,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 30"
+    ],
+    "description": "Frames discarded after opening the camera."
+  },
+  {
+    "key": "hardware.microphone.device",
+    "group": "hardware",
+    "default": null,
+    "tier": "basic",
+    "limits": [],
+    "description": "Microphone the robot listens with, e.g. 'MacBook Air Microphone' (see the Setup page). Empty uses the macOS default input, which AirPods or an iPhone can take over."
+  },
+  {
+    "key": "hardware.microphone.sample_rate",
+    "group": "hardware",
+    "default": 16000,
+    "tier": "advanced",
+    "limits": [
+      "≥ 8000",
+      "≤ 48000"
+    ],
+    "description": "Audio sample rate in Hz."
+  },
+  {
+    "key": "hardware.microphone.chunk_ms",
+    "group": "hardware",
+    "default": 32,
+    "tier": "advanced",
+    "limits": [
+      "≥ 10",
+      "≤ 1000"
+    ],
+    "description": "Audio chunk length fed to the VAD."
+  },
+  {
+    "key": "hardware.microphone.source",
+    "group": "hardware",
+    "default": "device",
+    "tier": "advanced",
+    "limits": [],
+    "description": "'device' is the microphone; 'wav' plays a researcher-supplied WAV file (mono or stereo, at sample_rate) as if it were the room."
+  },
+  {
+    "key": "hardware.microphone.wav_path",
+    "group": "hardware",
+    "default": null,
+    "tier": "advanced",
+    "limits": [],
+    "description": "WAV file for source 'wav'."
+  },
+  {
+    "key": "hardware.microphone.wav_realtime",
+    "group": "hardware",
+    "default": true,
+    "tier": "advanced",
+    "limits": [],
+    "description": "Pace WAV chunks in real time; off delivers them as fast as possible."
+  },
+  {
+    "key": "hardware.watch.name_prefix",
+    "group": "hardware",
+    "default": "Bangle.js",
+    "tier": "basic",
+    "limits": [],
+    "description": "Bluetooth name prefix used to find the watch."
+  },
+  {
+    "key": "hardware.watch.address",
+    "group": "hardware",
+    "default": null,
+    "tier": "advanced",
+    "limits": [],
+    "description": "Cached Bluetooth address (a CoreBluetooth UUID on macOS)."
+  },
+  {
+    "key": "hardware.watch.reconnect_attempts",
+    "group": "hardware",
+    "default": 3,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 20"
+    ],
+    "description": "Reconnect attempts before giving up."
+  },
+  {
+    "key": "hardware.watch.scan_timeout_seconds",
+    "group": "hardware",
+    "default": 10.0,
+    "tier": "advanced",
+    "limits": [
+      "> 0",
+      "≤ 60"
+    ],
+    "description": "How long one Bluetooth scan may take."
+  },
+  {
+    "key": "hardware.executor_workers",
+    "group": "hardware",
+    "default": 4,
+    "tier": "advanced",
+    "limits": [
+      "≥ 1",
+      "≤ 32"
+    ],
+    "description": "Threads for blocking hardware and ML calls."
+  },
+  {
+    "key": "storage.data_dir",
+    "group": "storage",
+    "default": "data",
+    "tier": "advanced",
+    "limits": [],
+    "description": "Directory for the database and local settings (relative to the project)."
+  },
+  {
+    "key": "storage.event_log_retention_days",
+    "group": "storage",
+    "default": 0,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0"
+    ],
+    "description": "Delete event-log entries older than this at start-up; 0 keeps them."
+  },
+  {
+    "key": "storage.models_dir",
+    "group": "storage",
+    "default": "models",
+    "tier": "advanced",
+    "limits": [],
+    "description": "Directory for downloaded model weights (relative to the project). Must not be inside data_dir, which holds nothing but the database."
+  },
+  {
+    "key": "logging.level",
+    "group": "logging",
+    "default": "INFO",
+    "tier": "advanced",
+    "limits": [],
+    "description": "Console log level."
+  },
+  {
+    "key": "live_view.enabled",
+    "group": "live_view",
+    "default": false,
+    "tier": "advanced",
+    "limits": [],
+    "description": "Open a window on the laptop while the robot listens, scans, enrols or calibrates (whether it runs from the dashboard or a terminal): the camera frames it analyses with each face labelled (owner or someone else), the microphone level and each voice match. Nothing is stored, but faces of people nearby appear on screen: use it for development, or with participants' consent."
+  }
+]

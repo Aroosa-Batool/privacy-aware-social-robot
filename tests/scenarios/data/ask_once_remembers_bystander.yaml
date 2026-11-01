@@ -1,0 +1,32 @@
+name: ask_once_remembers_bystander
+description: Ask-once policy , the owner's answer for a person is remembered and reused.
+settings:
+  privacy: {detection_modality: audio_and_camera, disclosure_policy: ask_once_per_bystander}
+episodes:
+  - reminder: {title: Doctor appointment, due_in_minutes: 10}
+    voices:
+      - {at_s: 60, speaker: stranger_a, seconds: 4}
+    watch: {answer: "no"}
+    expect:
+      channel: watch
+      watch_prompts: 1
+      remembered_consents: 1
+      bystanders_stored: 1
+  - reminder: {title: Pharmacy pickup, due_in_minutes: 10, sensitive: true}
+    voices:
+      - {at_s: 30, speaker: stranger_a, seconds: 4}  # the same person again: no question
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, LISTENING, AUDIO_BYSTANDER, CHECK_MEMORY,
+               WAIT_FOR_DUE, DISCLOSE_WATCH, DONE]
+      channel: watch
+      watch_prompts: 0
+      bystanders_stored: 1
+  - reminder: {title: Doctor appointment, due_in_minutes: 10}
+    voices:
+      - {at_s: 30, speaker: stranger_b, seconds: 4}  # someone new: ask again
+    watch: {answer: "yes"}
+    expect:
+      channel: spoken
+      watch_prompts: 1
+      remembered_consents: 2
+      bystanders_stored: 2

@@ -1,0 +1,15 @@
+name: owner_voice_no_scan
+description: With scan_if_only_owner_heard off, hearing only the owner skips the camera scan.
+settings:
+  privacy: {detection_modality: audio_and_camera, disclosure_policy: always_ask}
+  reminder: {scan_if_only_owner_heard: false}
+episodes:
+  - reminder: {title: Blood test results, due_in_minutes: 10}
+    voices:
+      - {at_s: 20, speaker: owner, seconds: 5}
+    faces: {front: [owner], right: [stranger_c]}
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, LISTENING, NO_BYSTANDER, WAIT_FOR_DUE,
+               DISCLOSE_SPEAK, DONE]
+      channel: spoken
+      camera_used: false

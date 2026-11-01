@@ -1,0 +1,113 @@
+# Site navigation: tabs in the top bar, groups in the sidebar, pages by their path in pages/
+# without ".md". "adr:*" lists every decision record in docs/adr.
+site:
+  name: PASR
+  tagline: privacy-aware social robot
+  blurb: >-
+    A personal social robot that says a sensitive reminder out loud only when nobody else can
+    hear it, and a research platform to measure how well it does that.
+  author: Aroosa Batool
+  repo: https://github.com/Aroosa-Batool/privacy-aware-social-robot
+  branch: main
+  url: https://aroosa-batool.github.io/privacy-aware-social-robot/
+
+# The Master's thesis this project belongs to: shown on pages/thesis.md (::thesis-facts), the
+# front page (::thesis-banner) and the footer of every page.
+thesis:
+  title: >-
+    From Consent to Privacy Management: Investigating Users' Perceptions of a Social Robot That
+    Remembers Their Privacy Preferences for Sensitive Information Disclosure
+  author: Aroosa Batool
+  degree: M.Sc. Computer Science
+  university: University of Siegen, Germany
+  faculty: Faculty IV, School of Science and Technology
+  department: Department of Electrical Engineering and Computer Science
+  group: Ubiquitous Computing
+  supervisors:
+    - {name: Univ.-Prof. Dr. Kristof Van Laerhoven, role: First supervisor}
+    - {name: Atikkhan Nilgar, role: Second supervisor}
+  period: July to December 2026
+  logos:
+    - src: /assets/logos/uni-siegen.svg
+      alt: University of Siegen
+      href: https://www.uni-siegen.de/
+    - src: /assets/logos/faculty-nt.svg
+      alt: School of Science and Technology (Faculty IV), University of Siegen
+      href: https://www.uni-siegen.de/nt/elektrotechnik-informatik/department-elektrotechnik-und-informatik
+    - src: /assets/logos/ubicomp.svg
+      alt: Ubiquitous Computing group, University of Siegen
+      href: https://ubicomp.eti.uni-siegen.de/
+
+tabs:
+  - name: Docs
+    icon: book-open
+    groups:
+      - name: Start here
+        pages: [index, quickstart, how-it-works, thesis, faq]
+      - name: Use the dashboard
+        pages:
+          - dashboard/tour
+          - dashboard/home
+          - dashboard/reminders
+          - dashboard/profile
+          - dashboard/people
+          - dashboard/events
+          - dashboard/setup
+          - dashboard/models
+          - dashboard/hardware
+          - dashboard/reset
+          - dashboard/live-view
+      - name: Set up the robot
+        pages:
+          - hardware/overview
+          - hardware/ohbot
+          - hardware/watch
+          - hardware/camera
+          - hardware/microphone
+          - hardware/models
+          - hardware/troubleshooting
+      - name: Run experiments
+        pages:
+          - research/overview
+          - research/calibration
+          - research/profiles
+          - research/file-sources
+          - research/algorithms
+          - research/event-log
+
+  - name: Reference
+    icon: file-text
+    groups:
+      - name: Concepts
+        pages: [reference/privacy, reference/state-machine, reference/architecture]
+      - name: Interfaces
+        pages: [reference/cli, reference/settings, reference/watch-protocol, reference/models]
+      - name: Develop
+        pages: [reference/development, reference/extending, reference/roadmap]
+
+  - name: Decisions
+    icon: scale
+    groups:
+      - name: Decision records
+        pages: [decisions/index, "adr:*"]
+
+footer:
+  - name: Get started
+    links:
+      - {text: "What is PASR?", href: /index}
+      - {text: Quickstart, href: /quickstart}
+      - {text: How it works, href: /how-it-works}
+      - {text: The thesis, href: /thesis}
+      - {text: FAQ, href: /faq}
+  - name: Use it
+    links:
+      - {text: Dashboard tour, href: /dashboard/tour}
+      - {text: Reminders, href: /dashboard/reminders}
+      - {text: Hardware setup, href: /hardware/overview}
+      - {text: Run experiments, href: /research/overview}
+  - name: Reference
+    links:
+      - {text: Privacy model, href: /reference/privacy}
+      - {text: CLI, href: /reference/cli}
+      - {text: Settings, href: /reference/settings}
+      - {text: Decision records, href: /decisions/index}

@@ -1,0 +1,18 @@
+name: audio_bystander_consent_yes
+description: A stranger talks while the robot listens; the owner allows disclosure on the watch.
+settings:
+  privacy: {detection_modality: audio_and_camera, disclosure_policy: always_ask}
+episodes:
+  - reminder: {title: Doctor appointment, due_in_minutes: 10}
+    voices:
+      - {at_s: 30, speaker: owner, seconds: 3}
+      - {at_s: 60, speaker: stranger_a, seconds: 4}
+    watch: {answer: "yes"}
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, LISTENING, AUDIO_BYSTANDER, CHECK_MEMORY,
+               AWAITING_CONSENT, WAIT_FOR_DUE, DISCLOSE_SPEAK, DONE]
+      channel: spoken
+      watch_prompts: 1
+      camera_used: false
+      remembered_consents: 0  # always_ask never remembers
+      bystanders_stored: 0

@@ -1,0 +1,25 @@
+name: owner_leaves_before_due
+description: >-
+  The owner is alone when the robot checks, then leaves with the watch before the reminder is
+  due; the robot asks the watch again before speaking and stays silent.
+settings:
+  privacy: {detection_modality: audio_only, disclosure_policy: always_ask}
+episodes:
+  - reminder: {title: Doctor appointment, due_in_minutes: 10}
+    voices:
+      - {at_s: 20, speaker: owner, seconds: 3}
+    owner_away: {from_s: 360}  # listening ends at 300 s; the reminder is due at 420 s
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, LISTENING, NO_BYSTANDER, WAIT_FOR_DUE,
+               DISCLOSE_WATCH, FAILED]
+      spoken: 0
+      microphone_used: true
+      status: missed
+  - reminder: {title: Doctor appointment, due_in_minutes: 10}
+    owner_away: {from_s: 360, back_s: 400}  # back in time: said out loud as usual
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, LISTENING, NO_BYSTANDER, WAIT_FOR_DUE,
+               DISCLOSE_SPEAK, DONE]
+      channel: spoken
+      spoken: 1
+      status: spoken

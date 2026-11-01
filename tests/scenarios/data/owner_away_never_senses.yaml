@@ -1,0 +1,41 @@
+name: owner_away_never_senses
+description: >-
+  The owner's watch does not answer when the flow starts, so the robot never listens, never
+  looks and never speaks, even with a stranger talking in front of it.
+settings:
+  privacy: {detection_modality: audio_and_camera, disclosure_policy: always_ask}
+episodes:
+  - reminder: {title: Doctor appointment, due_in_minutes: 10}
+    owner_away: {from_s: 0}  # gone for good, so the watch cannot get the reminder either
+    voices:
+      - {at_s: 30, speaker: stranger_a, seconds: 4}
+    faces: {front: [stranger_a]}
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, OWNER_AWAY, WAIT_FOR_DUE, DISCLOSE_WATCH,
+               FAILED]
+      channel: null
+      spoken: 0
+      watch_prompts: 0
+      microphone_used: false
+      camera_used: false
+      status: missed
+  - reminder: {title: Therapy session, due_in_minutes: 10}
+    owner_away: {from_s: 0, back_s: 300}  # back before it is due (420 s): private delivery
+    faces: {front: [owner]}
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, OWNER_AWAY, WAIT_FOR_DUE, DISCLOSE_WATCH, DONE]
+      channel: watch
+      spoken: 0
+      watch_prompts: 0
+      microphone_used: false
+      camera_used: false
+      status: sent_to_watch
+  - reminder: {title: Buy groceries, due_in_minutes: 5, sensitive: false}
+    owner_away: {from_s: 0}  # not sensitive, but nobody to say it to
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, OWNER_AWAY, WAIT_FOR_DUE, DISCLOSE_WATCH,
+               FAILED]
+      spoken: 0
+      microphone_used: false
+      camera_used: false
+      status: missed

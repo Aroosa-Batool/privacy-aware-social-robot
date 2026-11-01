@@ -1,0 +1,27 @@
+# Dashboard look (read when `pasr dashboard` starts Streamlit from the project root).
+
+[client]
+# A local research tool: no "Deploy" button or developer options; Rerun and Settings (light or
+# dark theme) stay in the ⋮ menu.
+toolbarMode = "viewer"
+
+[runner]
+# Streamlit otherwise runs a full garbage collection after every run, fragments included (Home
+# refreshes every second). With the models loaded each one holds the GIL for a long time, and
+# together they starved the robot's listening loop until it overran the due time.
+postScriptGC = false
+
+[theme]
+# Blue for the main action on a page. Red only for an error or for the button that deletes;
+# messages are toasts (green done, yellow warning, red error), not boxes on the page.
+baseRadius = "0.6rem"
+headingFontSizes = ["2rem", "1.4rem", "1.15rem", "1.05rem", "0.95rem", "0.85rem"]
+# The cards on Home (policy, detection, next reminder) at the size of a section heading, so a
+# value such as "ask once per bystander" shows in full.
+metricValueFontSize = "1.4rem"
+
+[theme.light]
+primaryColor = "#2563eb"
+
+[theme.dark]
+primaryColor = "#3b82f6"
