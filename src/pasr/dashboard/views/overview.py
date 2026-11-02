@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from pasr.dashboard.components.feedback import rate
 from pasr.dashboard.components.notify import notify
 from pasr.dashboard.components.pipeline import flow_steps, pipeline_strip, summary
 from pasr.dashboard.components.tables import with_flags
@@ -76,6 +77,9 @@ def live_view() -> None:
     else:
         st.caption(f"Reminder #{flow.reminder_id} , {summary(flow)}")
     pipeline_strip(flow)
+    if flow is not None and flow.finished:  # for comparing models; a comment is kept as typed
+        with st.container(border=True):  # through the refreshes
+            rate(snapshot.session_id, flow.reminder_id)
     if flow is not None:
         with st.expander("Steps of this reminder", expanded=snapshot.active_flow is not None):
             flow_steps(flow)

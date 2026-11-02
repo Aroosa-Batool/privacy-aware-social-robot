@@ -368,6 +368,103 @@ def test_home_counts_down_to_a_quick_test_and_tags_it(data_dir: Path):
     assert card.value.startswith("in ") and card.value.endswith(" s")  # due in 45 s
 
 
+CONDITION: dict[str, Any] = {
+    "speaker_model": "speechbrain_ecapa",
+    "vad_model": "silero",
+    "face_model": "insightface",
+    "sensitivity_model": "user",
+    "voice_threshold": 0.35,
+    "face_threshold": 0.4,
+    "mode": "audio_and_camera",
+    "policy": "always_ask",
+}
+
+
+def log_run(session: str, reminder_id: int, *states: str, channel: str) -> None:
+    from pasr.orchestration.clock import SystemClock
+    from pasr.orchestration.events import EventBus, EventType
+
+    bus = EventBus(SystemClock(), session, sinks=[state.offline().repos.events.append])
+    bus.emit(EventType.FLOW_STARTED, reminder_id=reminder_id, **CONDITION)
+    for before, after in zip(("IDLE", *states), states, strict=False):
+        bus.emit(EventType.FLOW_STATE, reminder_id=reminder_id, state_from=before, state_to=after)
+    bus.emit(EventType.REMINDER_DELIVERED, reminder_id=reminder_id, channel=channel)
+
+
+def test_home_asks_whether_the_last_run_worked_and_what_went_wrong(
+    data_dir: Path, monkeypatch: pytest.MonkeyPatch
+):
+    from dataclasses import replace
+    from datetime import UTC, datetime
+
+    from pasr.dashboard.components.feedback import QUESTION, WENT_WRONG
+    from pasr.orchestration.runtime import FlowView, Runtime
+
+    state.get_handle().start()
+    session = state.on_robot(lambda rt: rt.session_id)
+    path = ("WAKING", "CHECKING_PRESENCE", "LISTENING", "AUDIO_BYSTANDER", "DONE")
+    log_run(session, 68, *path, channel="watch")
+    at = datetime(2026, 11, 2, 13, 39, tzinfo=UTC)
+    ended = FlowView(68, "DONE", tuple((name, at, "") for name in ("IDLE", *path)), True, "watch")
+    snapshot = Runtime.snapshot
+
+    def showing(flow: FlowView):
+        last = (None, flow) if flow.finished else (flow, None)
+        return lambda self: replace(snapshot(self), active_flow=last[0], last_flow=last[1])
+
+    monkeypatch.setattr(
+        Runtime, "snapshot", showing(replace(ended, state="LISTENING", finished=False))
+    )
+    app = run(DASHBOARD / "views" / "overview.py")
+    assert not app.feedback  # not while it runs
+
+    monkeypatch.setattr(Runtime, "snapshot", showing(ended))
+    app = run(DASHBOARD / "views" / "overview.py")
+    assert any(m.value == QUESTION for m in app.markdown)
+    assert not app.text_area  # asked only with a thumbs down
+    app.feedback[0].set_value(0).run()
+    (comment,) = app.text_area
+    assert comment.label == WENT_WRONG
+    comment.input("It took my own voice for someone else's.")
+    next(b for b in app.button if b.label == "Save feedback").click().run()
+    assert not app.exception
+
+    saved = state.offline().repos.feedback.get(session, 68)
+    assert saved is not None
+    assert (saved.worked, saved.comment) == (False, "It took my own voice for someone else's.")
+    assert (saved.run.state, saved.run.channel, saved.run.condition) == ("DONE", "watch", CONDITION)
+    assert any(c.value.endswith(": did not work well.") for c in app.caption)
+
+
+def test_any_run_can_be_rated_on_the_events_page_and_downloaded(data_dir: Path):
+    from pasr.dashboard.components.feedback import outcome, rows
+
+    log_run("run-1", 7, "WAKING", "DONE", channel="spoken")
+    log_run("run-2", 8, "WAKING", "SCANNING", "FAILED", channel="watch")
+    repos = state.offline().repos
+    failed = repos.events.run("run-2", 8)
+    repos.feedback.save(failed, worked=False, comment="The camera froze.", now=state.now())
+    assert outcome(failed) == "failed, sent to the watch"
+
+    app = run(DASHBOARD / "views" / "events.py")
+    chosen = next(s for s in app.selectbox if s.label == "Run")
+    assert chosen.value == ("run-1", 7)  # the newest run not rated yet
+    assert any("speaker speechbrain_ecapa, VAD silero" in c.value for c in app.caption)
+    app.feedback[0].set_value(1).run()
+    assert not app.text_area  # it worked: nothing went wrong
+    next(b for b in app.button if b.label == "Save feedback").click().run()
+    assert not app.exception
+    assert repos.feedback.get("run-1", 7).worked
+
+    table = rows(repos.feedback.all())
+    assert [(row["reminder"], row["worked"], row["comment"]) for row in table] == [
+        (8, False, "The camera froze."),
+        (7, True, ""),
+    ]
+    assert table[0]["speaker_model"] == "speechbrain_ecapa"  # a column per model, to compare
+    assert [d.proto.label for d in app.get("download_button")][-1] == "Download feedback CSV"
+
+
 def test_home_leaves_starting_the_robot_to_the_header(data_dir: Path):
     app = run(DASHBOARD / "views" / "overview.py")
     assert not any(b.label == "Start the robot" for b in app.button)

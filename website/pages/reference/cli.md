@@ -137,7 +137,7 @@ uv run pasr reset --delete-owner --purge-log --yes
 | Option | |
 |---|---|
 | `--delete-owner / --keep-owner` | Also delete the owner's face and voice data, name and reminders. |
-| `--purge-log` | Also delete the research event log. |
+| `--purge-log` | Also delete the research event log and the pipeline feedback. |
 | `-y`, `--yes` | Do not ask for confirmation. |
 
 Stop the robot (or the dashboard's runtime) first.

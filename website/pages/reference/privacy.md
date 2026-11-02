@@ -19,6 +19,7 @@ description: The robot exists to protect the owner's private information from pe
 | Consent answers | The owner, on the watch | Yes, revocable | Until deleted or reset |
 | Reminder titles, times, sensitivity | The owner | Yes | Until deleted or a full reset |
 | Research event log | The runtime | Yes, **labels and numbers only** | Until purged |
+| Pipeline feedback | The owner, rating a run on Home or Events | Yes: worked or not, an optional comment in the owner's words, the run's models; **never in the event log** | Until purged with the log |
 
 Bystanders are anonymous labels (`B-001`). The robot never knows their names.
 
@@ -117,7 +118,7 @@ log records only the modality, plugin and threshold.
 
 ## Reset
 
-| | Bystanders and embeddings | Consent answers | Preferences | Owner name, face, voice | Reminders | Event log |
+| | Bystanders and embeddings | Consent answers | Preferences | Owner name, face, voice | Reminders | Event log and pipeline feedback |
 |---|---|---|---|---|---|---|
 | Reset, keep owner | deleted | deleted | deleted | kept | kept | kept |
 | Reset, delete owner | deleted | deleted | deleted | deleted | deleted | kept |

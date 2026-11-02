@@ -12,6 +12,7 @@ table, `event_log`, with the columns `ts`, `session_id`, `type`, `reminder_id`, 
 | Type | When | Typical data |
 |---|---|---|
 | `runtime.started` · `runtime.stopped` | The robot starts or stops (a new session). | |
+| `flow.started` | A reminder's flow starts, before its first step (ADR 0014). | `speaker_model`, `vad_model`, `face_model`, `sensitivity_model` (the model that judged the reminder, or `user`), `voice_threshold`, `face_threshold`, `mode` (detection), `policy`, `sensitive`, `origin` |
 | `flow.state` | The reminder flow moves to a new state. | `reason` |
 | `flow.error` | A flow failed and went to the watch. | `error_type` |
 | `owner.presence` | The watch was pinged. | `present` |
@@ -36,11 +37,34 @@ table, `event_log`, with the columns `ts`, `session_id`, `type`, `reminder_id`, 
 ## What the log may hold
 
 `EventBus.emit` accepts only these keys, with scalar values and strings of at most 80 characters,
-and raises otherwise: `answer`, `channel`, `count`, `decision`, `direction`, `error_type`, `faces`,
-`frames`, `identity`, `late_seconds`, `level`, `modality`, `mode`, `no_face`, `origin`, `plugin`,
-`policy`, `pose`, `present`, `ready`, `reason`, `samples`, `seconds`, `sensitive`, `several`,
-`similarity`, `threshold`, `tilt`, `turned`, `unusable`. Tests check that reminder
-titles never appear in the log.
+and raises otherwise: `answer`, `channel`, `count`, `decision`, `direction`, `error_type`,
+`face_model`, `face_threshold`, `faces`, `frames`, `identity`, `late_seconds`, `level`,
+`modality`, `mode`, `no_face`, `origin`, `plugin`, `policy`, `pose`, `present`, `ready`, `reason`,
+`samples`, `seconds`, `sensitive`, `sensitivity_model`, `several`, `similarity`, `speaker_model`,
+`threshold`, `tilt`, `turned`, `unusable`, `vad_model`, `voice_threshold`. Tests check that
+reminder titles never appear in the log.
+
+## Pipeline feedback
+
+Whether a run worked is something only the owner can tell, so the owner marks it: on Home under
+the pipeline once a run has ended, or for any logged run on the [Events](/dashboard/events) page.
+A **run** is one reminder's flow in one session. Each verdict (worked well or not, and with a
+thumbs down an optional comment on what went wrong) is stored in the `pipeline_feedback` table
+with a copy of the run: when it started, its last state, where the reminder went, and its
+`flow.started` condition. The comment is free text, so it never enters the event log
+([ADR 0014](/decisions/0014-pipeline-feedback)).
+
+**Download feedback CSV** on the Events page gives one row per rated run, with a column per
+model, ready to compare:
+
+```python
+feedback = pd.read_csv("pasr-pipeline-feedback.csv")
+print(feedback.groupby(["speaker_model", "face_model"]).worked.agg(["mean", "count"]))
+print(feedback[~feedback.worked][["speaker_model", "comment"]])  # what went wrong, per model
+```
+
+A run's own events share its `session_id` and `reminder_id`, so the scores behind a verdict are
+one join away.
 
 ## Get it out
 
@@ -69,8 +93,11 @@ print(voice.groupby("identity").similarity.describe())
 | Delivery punctuality | `reminder.delivered` (`late_seconds`) |
 | Cost of looking closer and following | `perception.face_studied` (`count`, `frames`, `seconds`) |
 | How much of the room each scan covered | `perception.scan` (`count`, `seconds`) |
+| How often each model's runs worked, and what went wrong | Pipeline feedback, by its model columns |
+| Which models and thresholds a run used | `flow.started` |
 
 ## Retention
 
 `storage.event_log_retention_days` deletes older entries at start-up (0, the default, keeps
-everything). `pasr reset --purge-log` deletes the whole log.
+everything); the pipeline feedback keeps its copy of each run. `pasr reset --purge-log` deletes
+the whole log and the feedback.

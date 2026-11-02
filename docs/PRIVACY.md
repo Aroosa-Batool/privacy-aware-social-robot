@@ -19,6 +19,7 @@ handle everyone's data , the owner's and the bystanders' , carefully itself.
 | Consent answers | Owner on the watch | Yes (`consent`), revocable | Until deleted or reset |
 | Reminder titles, times, sensitivity | Owner | Yes (`reminder`) | Until deleted or full reset |
 | Research event log | Runtime | Yes (`event_log`), **labels and numbers only** | Until purged (`storage.event_log_retention_days`) |
+| Pipeline feedback | Owner, rating a run on Home or Events | Yes (`pipeline_feedback`): worked or not, an optional free-text comment, a copy of the run and its models; **never in the event log** (ADR 0014) | Until purged with the log (`--purge-log`) |
 
 Bystanders are anonymous labels (`B-001`). The robot never knows their names.
 
@@ -43,7 +44,7 @@ Bystanders are anonymous labels (`B-001`). The robot never knows their names.
 
 ## Reset
 
-| | Bystanders + embeddings | Consent answers | Preferences (settings) | Owner name, face, voice | Reminders | Event log |
+| | Bystanders + embeddings | Consent answers | Preferences (settings) | Owner name, face, voice | Reminders | Event log + pipeline feedback |
 |---|---|---|---|---|---|---|
 | Reset, keep owner | deleted | deleted | deleted | kept | kept | kept |
 | Reset, delete owner | deleted | deleted | deleted | deleted | deleted | kept |

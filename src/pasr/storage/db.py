@@ -10,7 +10,8 @@ from pathlib import Path
 DB_FILENAME = "pasr.db"
 
 MIGRATIONS: list[str] = [
-    files("pasr.storage").joinpath("schema.sql").read_text(encoding="utf-8"),
+    files("pasr.storage").joinpath(name).read_text(encoding="utf-8")
+    for name in ("schema.sql", "feedback.sql")
 ]
 """Append new migrations; never edit applied ones. ``PRAGMA user_version`` records progress."""
 

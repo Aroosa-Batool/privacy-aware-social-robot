@@ -173,7 +173,29 @@ class DueFlow:
     def _go(self, target: DueState, reason: str) -> None:
         self.fsm.go(target, reason)
 
+    def _started(self) -> None:
+        """What this run works with, so runs (and the owner's feedback on them) can be compared
+        by model: the speaker, VAD and face models, who decided the reminder is sensitive (a
+        model's name, or "user"), the thresholds, and the privacy choices."""
+        settings = self.settings
+        perception, identity, privacy = settings.perception, settings.identity, settings.privacy
+        self.ctx.bus.emit(
+            EventType.FLOW_STARTED,
+            reminder_id=self.reminder.id,
+            sensitive=self.reminder.sensitive,
+            origin=self.reminder.origin.value,
+            mode=privacy.detection_modality.value,
+            policy=privacy.disclosure_policy.value,
+            speaker_model=perception.speaker.plugin,
+            vad_model=perception.vad.plugin,
+            face_model=perception.face.plugin,
+            sensitivity_model=self.reminder.sensitivity_source,
+            voice_threshold=identity.voice_threshold,
+            face_threshold=identity.face_threshold,
+        )
+
     async def run(self) -> FlowOutcome:
+        self._started()
         try:
             await self._run()
         except asyncio.CancelledError:

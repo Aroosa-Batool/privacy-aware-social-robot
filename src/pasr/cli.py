@@ -581,7 +581,9 @@ def reset(
             help="Also delete the owner's face and voice data, name and reminders.",
         ),
     ] = None,
-    purge_log: Annotated[bool, typer.Option(help="Also delete the research event log.")] = False,
+    purge_log: Annotated[
+        bool, typer.Option(help="Also delete the research event log and the pipeline feedback.")
+    ] = False,
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Do not ask for confirmation.")] = False,
 ) -> None:
     """Reset the app: always removes bystanders, consents and preferences."""

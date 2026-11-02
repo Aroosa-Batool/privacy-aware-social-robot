@@ -26,3 +26,5 @@ framework to how the camera survives a USB drop. They are rendered here straight
 | 0010 | The camera in a helper process, and every problem as a toast. |
 | 0011 | The robot guides face enrolment through five poses, coaches each one and says how it went. |
 | 0012 | Sweep the room row by row until the due time; look closer at a face before deciding who it is. |
+| 0013 | Enrol the voice from 30 s of read and free speech; judge another voice on 3 s of its speech. |
+| 0014 | The owner marks each reminder's run as worked or not, stored with the models it used. |

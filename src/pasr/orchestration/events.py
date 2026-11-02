@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 class EventType(StrEnum):
     RUNTIME_STARTED = "runtime.started"
     RUNTIME_STOPPED = "runtime.stopped"
+    FLOW_STARTED = "flow.started"
     FLOW_STATE = "flow.state"
     FLOW_ERROR = "flow.error"
     OWNER_PRESENCE = "owner.presence"
@@ -54,6 +55,8 @@ ALLOWED_PAYLOAD_KEYS = frozenset(
         "decision",
         "direction",
         "error_type",
+        "face_model",
+        "face_threshold",
         "faces",
         "frames",
         "identity",
@@ -72,12 +75,16 @@ ALLOWED_PAYLOAD_KEYS = frozenset(
         "samples",
         "seconds",
         "sensitive",
+        "sensitivity_model",
         "several",
         "similarity",
+        "speaker_model",
         "threshold",
         "tilt",
         "turned",
         "unusable",
+        "vad_model",
+        "voice_threshold",
     }
 )
 MAX_STRING_LENGTH = 80

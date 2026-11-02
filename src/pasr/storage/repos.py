@@ -5,14 +5,14 @@ import sqlite3
 import uuid
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 import numpy as np
 
 from pasr.domain.enums import Biometric, ConsentSource, ReminderOrigin, ReminderStatus
 from pasr.domain.models import Bystander, Consent, Embedding, Owner, Reminder
-from pasr.orchestration.events import Event
+from pasr.orchestration.events import Event, EventType
 from pasr.storage.db import Database, from_db, maybe_from_db, to_db
 
 
@@ -351,6 +351,35 @@ class LoggedEvent:
     payload: Mapping[str, object]
 
 
+@dataclass(frozen=True, slots=True)
+class Run:
+    """One reminder's way through the pipeline in one session, as the event log has it."""
+
+    session_id: str
+    reminder_id: int
+    started_at: datetime
+    state: str
+    """The last state it reached: DONE or FAILED once it ended."""
+    channel: str | None = None
+    """Where the reminder went (spoken or watch), once it got there."""
+    condition: Mapping[str, object] = field(default_factory=dict)
+    """The models, thresholds and privacy choices it ran with (its ``flow.started`` event);
+    empty for runs logged before that event existed."""
+
+
+RUN_EVENTS = (EventType.FLOW_STARTED, EventType.FLOW_STATE, EventType.REMINDER_DELIVERED)
+
+
+@dataclass(frozen=True, slots=True)
+class Feedback:
+    """The owner's verdict on a run: whether it worked as it should, and what went wrong."""
+
+    run: Run
+    worked: bool
+    comment: str
+    rated_at: datetime
+
+
 class EventRepository:
     def __init__(self, db: Database) -> None:
         self.db = db
@@ -415,10 +444,104 @@ class EventRepository:
             ).fetchall()
         return [row["session_id"] for row in rows]
 
+    def runs(
+        self, *, session_id: str | None = None, reminder_id: int | None = None, limit: int = 100
+    ) -> list[Run]:
+        """Reminder runs, the newest first, put together from their events."""
+        clauses = [f"type IN ({','.join('?' * len(RUN_EVENTS))})", "reminder_id IS NOT NULL"]
+        params: list[object] = [t.value for t in RUN_EVENTS]
+        if session_id is not None:
+            clauses.append("session_id = ?")
+            params.append(session_id)
+        if reminder_id is not None:
+            clauses.append("reminder_id = ?")
+            params.append(reminder_id)
+        with self.db.connect() as conn:
+            rows = conn.execute(
+                "SELECT ts, session_id, type, reminder_id, state_to, payload FROM event_log"
+                f" WHERE {' AND '.join(clauses)} ORDER BY id",
+                params,
+            ).fetchall()
+        found: dict[tuple[str, int], Run] = {}  # in the order the runs started
+        for row in rows:
+            key = (row["session_id"], row["reminder_id"])
+            run = found.get(key) or Run(*key, started_at=from_db(row["ts"]), state="IDLE")
+            if row["type"] == EventType.FLOW_STARTED:
+                run = replace(run, condition=json.loads(row["payload"]))
+            elif row["type"] == EventType.FLOW_STATE:
+                run = replace(run, state=row["state_to"])
+            else:
+                run = replace(run, channel=json.loads(row["payload"]).get("channel"))
+            found[key] = run
+        return list(reversed(found.values()))[:limit]
+
+    def run(self, session_id: str, reminder_id: int) -> Run | None:
+        found = self.runs(session_id=session_id, reminder_id=reminder_id, limit=1)
+        return found[0] if found else None
+
     def purge_older_than(self, cutoff: datetime) -> int:
         with self.db.connect() as conn:
             cursor = conn.execute("DELETE FROM event_log WHERE ts < ?", (to_db(cutoff),))
         return cursor.rowcount
+
+
+class FeedbackRepository:
+    """The owner's feedback on reminder runs, with each run as it was when rated."""
+
+    def __init__(self, db: Database) -> None:
+        self.db = db
+
+    def save(self, run: Run, *, worked: bool, comment: str, now: datetime) -> Feedback:
+        """Record the verdict on ``run``, replacing an earlier one."""
+        with self.db.connect() as conn:
+            conn.execute(
+                "INSERT INTO pipeline_feedback (session_id, reminder_id, started_at, state,"
+                " channel, condition, worked, comment, rated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                " ON CONFLICT (session_id, reminder_id) DO UPDATE SET state = excluded.state,"
+                " channel = excluded.channel, condition = excluded.condition,"
+                " worked = excluded.worked, comment = excluded.comment,"
+                " rated_at = excluded.rated_at",
+                (
+                    run.session_id,
+                    run.reminder_id,
+                    to_db(run.started_at),
+                    run.state,
+                    run.channel,
+                    json.dumps(dict(run.condition)),
+                    int(worked),
+                    comment,
+                    to_db(now),
+                ),
+            )
+        return Feedback(run, worked, comment, now)
+
+    def get(self, session_id: str, reminder_id: int) -> Feedback | None:
+        with self.db.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM pipeline_feedback WHERE session_id = ? AND reminder_id = ?",
+                (session_id, reminder_id),
+            ).fetchone()
+        return None if row is None else self._from_row(row)
+
+    def all(self) -> list[Feedback]:
+        """The newest run first."""
+        with self.db.connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM pipeline_feedback ORDER BY started_at DESC"
+            ).fetchall()
+        return [self._from_row(row) for row in rows]
+
+    @staticmethod
+    def _from_row(row: sqlite3.Row) -> Feedback:
+        run = Run(
+            session_id=row["session_id"],
+            reminder_id=row["reminder_id"],
+            started_at=from_db(row["started_at"]),
+            state=row["state"],
+            channel=row["channel"],
+            condition=json.loads(row["condition"]),
+        )
+        return Feedback(run, bool(row["worked"]), row["comment"], from_db(row["rated_at"]))
 
 
 class Repositories:
@@ -429,3 +552,4 @@ class Repositories:
         self.consents = ConsentRepository(db)
         self.reminders = ReminderRepository(db)
         self.events = EventRepository(db)
+        self.feedback = FeedbackRepository(db)

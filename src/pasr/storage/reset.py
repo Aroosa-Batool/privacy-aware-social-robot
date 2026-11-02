@@ -21,13 +21,14 @@ def reset(
     Always deletes bystanders (with their embeddings), remembered consents and the owner's
     preferences (settings). With ``delete_owner`` it also deletes the owner , name, face and
     voice embeddings , and the owner's reminders. The research event log, which contains no
-    personal content, is kept unless ``purge_log`` is set.
+    personal content, and the owner's feedback on reminder runs are kept unless ``purge_log``
+    is set.
     """
     tables = ["consent", "bystander_embedding", "bystander"]
     if delete_owner:
         tables += ["reminder", "owner_embedding", "owner"]
     if purge_log:
-        tables.append("event_log")
+        tables += ["event_log", "pipeline_feedback"]
     deleted: dict[str, int] = {}
     with db.connect() as conn:
         for table in tables:

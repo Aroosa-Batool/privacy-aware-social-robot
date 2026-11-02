@@ -5,8 +5,12 @@ import io
 import json
 from collections import Counter
 
+import pandas as pd
 import streamlit as st
 
+from pasr.dashboard.components.feedback import models, outcome, rate, verdict
+from pasr.dashboard.components.feedback import rows as feedback_rows
+from pasr.dashboard.components.tables import with_flags
 from pasr.dashboard.state import offline
 from pasr.orchestration.events import EventType
 
@@ -69,3 +73,39 @@ else:
             "application/jsonl",
             icon=":material/download:",
         )
+
+st.subheader("Pipeline feedback")
+st.caption(
+    "Whether each reminder's run worked as it should, with the models it used, for comparing "
+    "them. Rate a run on Home as it ends, or any run here. Comments are kept with the feedback, "
+    "never in the event log."
+)
+runs = {(run.session_id, run.reminder_id): run for run in repos.events.runs(limit=200)}
+rated = {(f.run.session_id, f.run.reminder_id): f for f in repos.feedback.all()}
+if not runs:
+    st.caption("No reminder has run yet.")
+else:
+
+    def label(key: tuple[str, int]) -> str:
+        run = runs[key]
+        said = f"rated: {verdict(rated[key].worked)}" if key in rated else "not rated"
+        return f"#{run.reminder_id} · {run.started_at:%a %d %b %H:%M} · {outcome(run)} · {said}"
+
+    keys = list(runs)
+    first_unrated = next((i for i, key in enumerate(keys) if key not in rated), 0)
+    chosen = st.selectbox("Run", keys, index=first_unrated, format_func=label)
+    with st.container(border=True):
+        st.caption(f"Session {chosen[0]}. {models(runs[chosen])}")
+        rate(*chosen)
+
+if rated:
+    table = feedback_rows(list(rated.values()))
+    flags = ["worked", *(["sensitive"] if any("sensitive" in row for row in table) else [])]
+    st.dataframe(with_flags(table, *flags), hide_index=True, width="stretch")
+    st.download_button(
+        "Download feedback CSV",
+        pd.DataFrame(table).to_csv(index=False),
+        "pasr-pipeline-feedback.csv",
+        "text/csv",
+        icon=":material/download:",
+    )

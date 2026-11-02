@@ -10,7 +10,7 @@ from pasr.orchestration.clock import SystemClock
 from pasr.orchestration.events import EventBus, EventType
 from pasr.settings.loader import read_overrides, update_overrides
 from pasr.storage.db import Database
-from pasr.storage.repos import Repositories
+from pasr.storage.repos import Feedback, Repositories
 from pasr.storage.reset import reset
 
 NOW = datetime(2026, 1, 5, 9, 0, tzinfo=UTC)
@@ -37,8 +37,21 @@ def add_reminder(repos, title="Dentist", status=None):
 
 def test_migrations_are_idempotent(tmp_path: Path):
     db = Database.in_dir(tmp_path)
-    assert db.migrate() == 1
-    assert db.migrate() == 1
+    assert db.migrate() == 2
+    assert db.migrate() == 2
+
+
+def test_a_database_from_before_the_feedback_gets_its_table(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    from pasr.storage import db as storage
+
+    old = Database.in_dir(tmp_path)
+    monkeypatch.setattr(storage, "MIGRATIONS", storage.MIGRATIONS[:1])
+    assert old.migrate() == 1
+    monkeypatch.undo()
+    assert old.migrate() == 2
+    assert Repositories(old).feedback.all() == []
 
 
 def test_owner_and_embeddings_round_trip(repos: Repositories):
@@ -100,6 +113,59 @@ def test_interrupted_flows_are_rescheduled(repos: Repositories):
     assert repos.reminders.all([ReminderStatus.SPOKEN]) == []
 
 
+def log_run(repos: Repositories, session: str, reminder_id: int, *states: str, **logged) -> None:
+    """A run's events: ``flow.started`` with what it ran with (unless it is from before that
+    event existed), each state, and the delivery when ``channel`` is given."""
+    bus = EventBus(SystemClock(), session, sinks=[repos.events.append])
+    channel = logged.pop("channel", None)
+    if logged:
+        bus.emit(EventType.FLOW_STARTED, reminder_id=reminder_id, **logged)
+    previous = "IDLE"
+    for state in states:
+        bus.emit(
+            EventType.FLOW_STATE,
+            reminder_id=reminder_id,
+            state_from=previous,
+            state_to=state,
+            reason="",
+        )
+        previous = state
+    if channel:
+        bus.emit(EventType.REMINDER_DELIVERED, reminder_id=reminder_id, channel=channel)
+
+
+def test_runs_are_put_together_from_their_events_newest_first(repos: Repositories):
+    log_run(repos, "run-1", 7, "WAKING", "DONE", channel="spoken", speaker_model="ecapa")
+    log_run(repos, "run-2", 7, "WAKING", "LISTENING", speaker_model="resemblyzer")  # again
+    log_run(repos, "run-2", 8, "WAKING", "FAILED", channel="watch")  # logged before flow.started
+    runs = repos.events.runs()
+    assert [(r.session_id, r.reminder_id, r.state, r.channel) for r in runs] == [
+        ("run-2", 8, "FAILED", "watch"),
+        ("run-2", 7, "LISTENING", None),  # unfinished: the robot stopped, or is on it now
+        ("run-1", 7, "DONE", "spoken"),
+    ]
+    assert [r.condition for r in runs] == [
+        {},
+        {"speaker_model": "resemblyzer"},
+        {"speaker_model": "ecapa"},
+    ]
+    assert repos.events.run("run-1", 7) == runs[-1]
+    assert repos.events.run("run-1", 8) is None
+
+
+def test_feedback_keeps_its_run_and_a_second_verdict_replaces_the_first(repos: Repositories):
+    log_run(repos, "run-1", 7, "WAKING", "DONE", channel="watch", speaker_model="ecapa")
+    run = repos.events.run("run-1", 7)
+    repos.feedback.save(run, worked=False, comment="it took my voice for someone's", now=NOW)
+    later = NOW + timedelta(minutes=1)
+    repos.feedback.save(run, worked=True, comment="", now=later)
+    assert repos.feedback.all() == [Feedback(run, True, "", later)]
+    assert repos.feedback.get("run-1", 7) == Feedback(run, True, "", later)
+    assert repos.feedback.get("run-1", 8) is None
+    repos.events.purge_older_than(later + timedelta(days=1))  # the log's retention
+    assert repos.feedback.get("run-1", 7).run == run  # the feedback keeps its run
+
+
 def populate(tmp_path: Path) -> tuple[Database, Repositories, Path]:
     data_dir = tmp_path / "data"
     db = Database.in_dir(data_dir)
@@ -111,6 +177,8 @@ def populate(tmp_path: Path) -> tuple[Database, Repositories, Path]:
     b = repos.bystanders.create([vec(0, 1)], Biometric.VOICE, NOW).id
     repos.consents.record(b, True, source=ConsentSource.WATCH, now=NOW)
     EventBus(SystemClock(), "t", sinks=[repos.events.append]).emit(EventType.RUNTIME_STARTED)
+    log_run(repos, "t", 1, "WAKING", "DONE", channel="spoken", speaker_model="ecapa")
+    repos.feedback.save(repos.events.run("t", 1), worked=True, comment="", now=NOW)
     update_overrides(data_dir, {"privacy": {"disclosure_policy": "always_disclose"}})
     return db, repos, data_dir
 
@@ -124,6 +192,7 @@ def test_partial_reset_keeps_owner_and_reminders(tmp_path: Path):
     assert repos.owner.embeddings(Biometric.VOICE)
     assert len(repos.reminders.all()) == 1
     assert repos.events.query()  # the research log is kept
+    assert repos.feedback.all()  # and the feedback on runs
 
 
 def test_full_reset_deletes_owner_data(tmp_path: Path):
@@ -134,6 +203,7 @@ def test_full_reset_deletes_owner_data(tmp_path: Path):
     assert repos.reminders.all() == []
     assert repos.bystanders.all() == []
     assert repos.events.query() == []
+    assert repos.feedback.all() == []
 
 
 def test_runtime_lock_excludes_a_second_owner_in_the_same_process(tmp_path):

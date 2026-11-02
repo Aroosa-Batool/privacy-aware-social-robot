@@ -36,6 +36,17 @@ The current stage is blue and labelled **NOW**; finished stages are green with a
 flow skipped or never reached stay grey. A failed stage turns red, and the reason appears as a
 toast.
 
+## Did the run work?
+
+Once a run has ended, Home asks under the pipeline: *Did this run work as it should?* Click the
+thumbs up, or the thumbs down and, if you like, write **what went wrong** (for example, "it took
+my own voice for someone else's"). Click **Save feedback**; the line next to the button says
+what was saved. The comment is kept as you type, through the page's refreshes. It is saved with
+the models and thresholds the run used, so runs can be compared by model. Missed one? Rate it on
+the [Events](/dashboard/events#pipeline-feedback) page. ([ADR 0014](/decisions/0014-pipeline-feedback))
+
+## Steps and events
+
 **Steps of this reminder** lists each state change with its time and a short reason, for example
 `CHECKING_PRESENCE` *asking the owner's watch before using any sensor*. **Recent events** below it
 shows the latest research-log entries: perception scores, presence checks, deliveries.

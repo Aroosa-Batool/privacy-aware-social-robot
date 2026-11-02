@@ -141,6 +141,35 @@ async def test_perception_errors_fail_closed_to_the_watch(runtime: Runtime):
     await drive(runtime, body)
 
 
+async def test_each_run_logs_what_it_ran_with_for_the_feedback_on_it(runtime: Runtime):
+    async def body():
+        await enroll(runtime)
+        due = runtime.clock.now() + timedelta(minutes=10)
+        reminder = runtime.service.create("Dentist", due, origin=ReminderOrigin.CLI)
+        outcome = await runtime.reminders.wait_for(reminder.id)
+        run = runtime.repos.events.run(runtime.session_id, reminder.id)
+        assert run is not None
+        assert (run.state, run.channel) == ("DONE", outcome.channel.value)
+        settings = runtime.settings
+        assert run.condition == {
+            "sensitive": reminder.sensitive,
+            "origin": "cli",
+            "mode": settings.privacy.detection_modality.value,
+            "policy": settings.privacy.disclosure_policy.value,
+            "speaker_model": settings.perception.speaker.plugin,
+            "vad_model": settings.perception.vad.plugin,
+            "face_model": settings.perception.face.plugin,
+            "sensitivity_model": reminder.sensitivity_source,  # the model that judged it
+            "voice_threshold": settings.identity.voice_threshold,
+            "face_threshold": settings.identity.face_threshold,
+        }
+        steps = (EventType.FLOW_STARTED, EventType.FLOW_STATE)
+        logged = [e.type for e in runtime.bus.recent if e.type in steps]
+        assert logged[0] is EventType.FLOW_STARTED  # before the flow's first step
+
+    await drive(runtime, body)
+
+
 async def test_the_dashboard_sees_what_turned_a_reminder_to_the_watch(runtime: Runtime):
     from pasr.dashboard.components.pipeline import stages
 

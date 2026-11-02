@@ -10,11 +10,12 @@ A reset **always** deletes:
 - your preferences (every setting returns to its default).
 
 You choose whether the **owner** is deleted too: name, face and voice embeddings, and reminders.
-The research event log holds no personal content and is kept unless you tick
-*Also delete the research event log*. Tick *I understand this cannot be undone* and click
-**Reset**; the robot is stopped first.
+The research event log holds no personal content; it and the
+[pipeline feedback](/dashboard/events#pipeline-feedback) are kept unless you tick
+*Also delete the research event log … and the pipeline feedback*. Tick *I understand this cannot
+be undone* and click **Reset**; the robot is stopped first.
 
-| | Bystanders and embeddings | Consent answers | Preferences | Owner name, face, voice | Reminders | Event log |
+| | Bystanders and embeddings | Consent answers | Preferences | Owner name, face, voice | Reminders | Event log and pipeline feedback |
 |---|---|---|---|---|---|---|
 | Reset, keep owner | deleted | deleted | deleted | kept | kept | kept |
 | Reset, delete owner | deleted | deleted | deleted | deleted | deleted | kept |
@@ -29,8 +30,8 @@ uv run pasr reset --delete-owner --purge-log --yes
 
 :::danger It really deletes
 SQLite's `secure_delete` overwrites the deleted rows, and the reset checkpoints the write-ahead
-log, so nothing lingers in the database file. Export the [event log](/dashboard/events) first if
-you still need it.
+log, so nothing lingers in the database file. Export the [event log](/dashboard/events) and the
+pipeline feedback first if you still need them.
 :::
 
 To take back a single answer instead, use **Delete last consent** or **Forget a bystander** on

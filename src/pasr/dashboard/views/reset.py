@@ -31,7 +31,10 @@ with st.container(border=True):
             else "No , keep the owner and their reminders"
         ),
     )
-    purge_log = st.checkbox("Also delete the research event log (it holds no personal content)")
+    purge_log = st.checkbox(
+        "Also delete the research event log (it holds no personal content) and the pipeline "
+        "feedback"
+    )
     st.divider()
     confirmed = st.checkbox("I understand this cannot be undone")
     if handle.running:
