@@ -23,7 +23,7 @@ model that produced them.
 | recognised by | `face` or `voice`, whichever first identified the person. |
 | first seen · last seen | When the robot first and last matched them. |
 | times seen | How often they were recognised again. |
-| may hear sensitive reminders | The owner's remembered answer: yes or no. |
+| may hear sensitive information | The owner's remembered answer: yes or no. |
 
 Each bystander keeps at most five embeddings. **Forget a bystander** deletes the person, their
 embeddings and their consent answers in one go.

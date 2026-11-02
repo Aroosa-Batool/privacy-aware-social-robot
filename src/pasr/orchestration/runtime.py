@@ -85,9 +85,9 @@ def setup_warnings(settings: Settings, owner: str | None, enrolled: dict[str, in
         warnings.append("No owner registered yet , open Profile.")
     modality = settings.privacy.detection_modality
     if modality.listens and not enrolled.get(Biometric.VOICE.value):
-        warnings.append("Owner voice not enrolled: sensitive reminders will go to the watch.")
+        warnings.append("Owner voice not enrolled: sensitive information will go to the watch.")
     if modality.looks and not enrolled.get(Biometric.FACE.value):
-        warnings.append("Owner face not enrolled: sensitive reminders will go to the watch.")
+        warnings.append("Owner face not enrolled: sensitive information will go to the watch.")
     return warnings
 
 

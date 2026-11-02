@@ -410,6 +410,8 @@ class FakeSoundDevice:
         self.opens = 0
         self.streams: list[Any] = []
         self.played: list[tuple[Any, int, Any]] = []
+        self.running_dry = False
+        """Every playing write reports that the speaker ran dry (a crack)."""
 
     def install(self, monkeypatch: pytest.MonkeyPatch) -> FakeSoundDevice:
         import numpy as np
@@ -485,11 +487,25 @@ class FakeSoundDevice:
 
         module.query_devices = query_devices  # type: ignore[attr-defined]
 
-        def play(data: Any, samplerate: int, device: Any = None, blocking: bool = False) -> None:
-            assert blocking
-            world.played.append((data, samplerate, device))
+        class OutputStream:
+            """Like PortAudio's blocking writes: ``write`` returns whether the speaker ran dry,
+            and closing waits until all of it has played."""
 
-        module.play = play  # type: ignore[attr-defined]
+            def __init__(self, *, samplerate: int, device: Any, channels: int, dtype: str) -> None:
+                assert channels == 1 and dtype == "float32"
+                self.samplerate, self.device = samplerate, device
+
+            def __enter__(self) -> OutputStream:
+                return self
+
+            def __exit__(self, *exc: object) -> None:
+                pass
+
+            def write(self, data: Any) -> bool:
+                world.played.append((data, self.samplerate, self.device))
+                return world.running_dry
+
+        module.OutputStream = OutputStream  # type: ignore[attr-defined]
         monkeypatch.setitem(sys.modules, "sounddevice", module)
         return self
 

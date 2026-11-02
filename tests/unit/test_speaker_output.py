@@ -1,6 +1,8 @@
 """The robot's voice on a chosen output device instead of the macOS default."""
 
 import sys
+import threading
+import time
 import types
 
 import numpy as np
@@ -17,7 +19,7 @@ from pasr.hardware.speaker.real import OhbotSpeaker
 def audio(monkeypatch):
     world = FakeSoundDevice().install(monkeypatch)
     soundfile = types.ModuleType("soundfile")
-    soundfile.read = lambda path, dtype="float32": (np.zeros(2205, dtype=np.float32), 22050)
+    soundfile.read = lambda path, dtype, always_2d: (np.zeros((2205, 1), dtype=np.float32), 22050)
     monkeypatch.setitem(sys.modules, "soundfile", soundfile)
     return world
 
@@ -37,12 +39,50 @@ async def test_ohbot_voice_plays_on_the_chosen_device(monkeypatch, tmp_path, aud
     speaker = OhbotSpeaker("auto", output_device="MacBook Air Speakers", driver=driver)
     await speaker.say("Reminder: dentist")
     assert ("say", "Reminder: dentist") in ohbot.calls  # lip sync still the library's
-    ((data, rate, device),) = audio.played
-    assert (rate, device, data.shape) == (22050, 1, (2205,))
+    ((data, rate, device),) = audio.played  # all of it in one write: no Python while it plays
+    assert (rate, device, data.shape) == (22050, 1, (2205, 1))
     assert ohbot.default_played == []  # afplay (the macOS default output) not used
 
     await OhbotSpeaker("auto", driver=driver).say("again")  # no device: library default
     assert ohbot.default_played == ["ohbotData/ohbotspeech.wav"] and len(audio.played) == 1
+
+
+async def test_a_voice_that_ran_dry_is_logged(monkeypatch, tmp_path, audio, caplog):
+    install_fake_ohbot(monkeypatch)
+    audio.running_dry = True  # macOS plays on with a crack and reports nothing else
+    driver = OhbotDriver("auto", tmp_path)
+    await OhbotSpeaker("auto", output_device="MacBook Air Speakers", driver=driver).say("Hi")
+    assert "ran dry on 'MacBook Air Speakers'" in caplog.text
+
+
+async def test_say_returns_once_the_speech_has_played(monkeypatch, tmp_path, audio):
+    ohbot = install_fake_ohbot(monkeypatch)
+
+    def say(text, untilDone=True, lipSync=True):  # noqa: N803 - the library plays on a thread of
+        def play():  # its own and returns when the lips stop, before the sound ends
+            time.sleep(0.2)
+            ohbot.playsound("ohbotData/ohbotspeech.wav")
+
+        threading.Thread(target=play).start()
+
+    monkeypatch.setattr(ohbot, "say", say)
+    driver = OhbotDriver("auto", tmp_path)
+    await OhbotSpeaker("auto", output_device="MacBook Air Speakers", driver=driver).say("Hi")
+    assert len(audio.played) == 1  # so the microphone opened next does not hear it
+
+
+async def test_a_voice_that_cannot_be_played_fails_the_say(monkeypatch, tmp_path, audio):
+    install_fake_ohbot(monkeypatch)
+
+    def unreadable(path, dtype, always_2d):
+        raise RuntimeError("Error opening 'ohbotspeech.wav'")
+
+    monkeypatch.setattr(sys.modules["soundfile"], "read", unreadable)
+    speaker = OhbotSpeaker(
+        "auto", output_device="MacBook Air Speakers", driver=OhbotDriver("auto", tmp_path)
+    )
+    with pytest.raises(RuntimeError, match="Error opening"):  # not lost on the library's thread
+        await speaker.say("Reminder: dentist")
 
 
 async def test_unknown_device_fails_before_speaking(monkeypatch, tmp_path, audio):

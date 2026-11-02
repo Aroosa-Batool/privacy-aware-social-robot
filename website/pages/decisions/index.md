@@ -28,3 +28,4 @@ framework to how the camera survives a USB drop. They are rendered here straight
 | 0012 | Sweep the room row by row until the due time; look closer at a face before deciding who it is. |
 | 0013 | Enrol the voice from 30 s of read and free speech; judge another voice on 3 s of its speech. |
 | 0014 | The owner marks each reminder's run as worked or not, stored with the models it used. |
+| 0015 | By voice the robot asks only for what is missing, at most three times, with an example the last time. |

@@ -2,6 +2,7 @@
 
 import time
 from collections.abc import Iterator
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -95,16 +96,24 @@ def test_calibration_measures_you_and_others_then_saves_the_line(data_dir: Path)
     assert state.on_robot(lambda rt: rt.settings.identity.face_threshold) == pytest.approx(line)
 
 
-def test_typed_reminder_asks_for_a_date(data_dir: Path):
+def test_typed_reminder_asks_for_a_date_only_without_a_time(data_dir: Path):
     app = run(DASHBOARD / "views" / "reminders.py")
-    app.text_input[0].input("Doctor appointment at 2pm")
+    app.text_input[0].input("Doctor appointment")
     next(b for b in app.button if b.label == "Add reminder").click().run()
     assert any("On what date" in d.label for d in app.date_input)
     next(b for b in app.button if b.label == "Save").click().run()
     assert not app.exception
     (reminder,) = state.offline().service.upcoming()
     assert reminder.sensitive
-    assert (reminder.due_at.hour, reminder.due_at.minute) == (14, 0)
+
+    app.text_input[0].input("Dentist at 23:59")  # today, unless that minute has passed
+    next(b for b in app.button if b.label == "Add reminder").click().run()
+    assert not app.date_input
+    next(b for b in app.button if b.label == "Save").click().run()
+    assert not app.exception
+    dentist = next(r for r in state.offline().service.upcoming() if r.title == "Dentist")
+    assert (dentist.due_at.hour, dentist.due_at.minute) == (23, 59)
+    assert dentist.due_at.date() - state.now().date() in (timedelta(0), timedelta(days=1))
 
 
 def test_models_page_chooses_a_model_per_stage_and_keeps_the_sensitive_words(

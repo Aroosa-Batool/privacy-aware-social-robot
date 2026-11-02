@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 import streamlit as st
 
-from pasr.apps.reminder.capture import CaptureResult
+from pasr.apps.reminder.capture import LONGEST_S, CaptureResult
 from pasr.apps.reminder.service import DATE_QUESTION, ReminderDraft
 from pasr.dashboard.components import study
 from pasr.dashboard.components.confirm import confirm
@@ -143,8 +143,9 @@ with add_test:
 with add_voice:
     if add_voice.open and needs_running("set reminders by voice"):
         st.caption(
-            "Press the button: the robot asks what to remind you about, listens, and asks for a "
-            "date if you did not say one. The audio and transcript are never stored."
+            "Press the button: the robot asks what to remind you about, then when, or at what "
+            "time, if you did not say (a time alone is today, or tomorrow once it has passed). "
+            "It asks each question up to three times. The audio and transcript are never stored."
         )
         if st.button("Talk to the robot", type="primary", icon=":material/mic:"):
 
@@ -152,7 +153,7 @@ with add_voice:
                 return await runtime.reminders.capture_by_voice()
 
             with working("The robot is listening"):
-                result = attempt("Listening", lambda: handle.call(capture, timeout=90))
+                result = attempt("Listening", lambda: handle.call(capture, timeout=LONGEST_S))
             if result is not None and result.reminder is not None:
                 saved(result.reminder)
             elif result is not None:

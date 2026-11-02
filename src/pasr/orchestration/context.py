@@ -40,21 +40,26 @@ class RobotContext:
             return fn(*args)
         return await asyncio.get_running_loop().run_in_executor(self.executor, partial(fn, *args))
 
-    def segmenter(self) -> SpeechSegmenter:
+    def segmenter(self, *, min_silence_ms: int | None = None) -> SpeechSegmenter:
         vad = self.settings.vad
         return SpeechSegmenter(
             speech_threshold=vad.speech_threshold,
             min_speech_ms=vad.min_speech_ms,
-            min_silence_ms=vad.min_silence_ms,
+            min_silence_ms=vad.min_silence_ms if min_silence_ms is None else min_silence_ms,
             max_segment_seconds=vad.max_segment_seconds,
         )
 
     async def speech_segments(
-        self, until: datetime, *, microphone: Microphone | None = None
+        self,
+        until: datetime,
+        *,
+        microphone: Microphone | None = None,
+        min_silence_ms: int | None = None,
     ) -> AsyncGenerator[SpeechSegment, None]:
         """Speech segments heard on the microphone (or another audio source, e.g. a WAV file)
-        until ``until``. Wrap in ``aclosing``."""
-        segmenter = self.segmenter()
+        until ``until``; a pause of ``min_silence_ms`` (``vad.min_silence_ms`` by default) ends
+        one. Wrap in ``aclosing``."""
+        segmenter = self.segmenter(min_silence_ms=min_silence_ms)
         vad = self.perception.vad
         threshold = self.settings.vad.speech_threshold
         source = microphone or self.hardware.microphone

@@ -12,8 +12,10 @@ watch answers.
 ## Type a reminder
 
 Write it the way you would say it: *Dentist appointment on Friday at 3pm*, *Call the bank
-tomorrow 9:30*, *Therapist next Monday*. The date and time are read from the text (dateparser);
-a missing time becomes `reminder.default_time` (00:00), and a missing date is asked for.
+tomorrow 9:30*, *Therapist next Monday*. The date and time are read from the text (dateparser).
+A time without a date is today, or tomorrow once that minute has passed (*at 15:00* typed at
+15:01 is tomorrow). With neither, the date is asked for; a missing time becomes
+`reminder.default_time` (00:00), shown before you save.
 
 **Sensitivity** has three choices:
 
@@ -51,10 +53,23 @@ later runs; the same switch is on Home. The camera and microphone work the same 
 
 ::image src=/assets/media/reminders-voice.webp alt="The By voice tab with a Talk to the robot button above the reminders table." url=localhost:8501/reminders
 
-Press **Talk to the robot** (the robot must be running). It asks what to remind you about,
-listens, transcribes locally with faster-whisper, and asks for a date if you did not say one.
-The audio and the transcript are never stored, and the spoken confirmation leaves out the title
-of a sensitive reminder.
+Press **Talk to the robot** (the robot must be running). It asks *What should I remind you
+about?*, listens, and transcribes locally with faster-whisper. Then, only if you did not say:
+
+| You said | The robot |
+|---|---|
+| A date and a time | Saves it. |
+| A time only (*at 3pm*) | Takes today, or tomorrow once that minute has passed, and saves it. |
+| A date only (*on Friday*) | Asks *At what time should I remind you?* |
+| Neither | Asks *When should I remind you?*, then the time if the answer was a date only. |
+
+An answer ends after a one-second pause, so you can pause briefly mid-sentence. If the robot
+hears nothing for 15 seconds or cannot make out the answer, it asks again, at most three times
+per question: first *Sorry, I didn't catch that.* and the question, then the question with an
+example of what to say (*You can say, for example, tomorrow at 3 PM*). After the third miss it
+says *Sorry, the reminder is not saved. Please try again, or type it on the dashboard.* The
+audio and the transcript are never stored, and the spoken confirmation leaves out the title of a
+sensitive reminder. ([ADR 0015](/decisions/0015-asking-for-a-reminder-by-voice))
 
 ## All reminders
 

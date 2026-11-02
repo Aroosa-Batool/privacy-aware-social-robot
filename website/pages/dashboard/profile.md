@@ -52,7 +52,7 @@ robot asks you to try again. **Delete voice data** removes them. See
 Three questions, saved with **Save preferences**.
 :::
 
-::image src=/assets/media/profile-privacy.webp alt="The privacy choices: how the robot may check for other people, how to handle sensitive reminders, and whether to remember watch answers." url=localhost:8501/profile
+::image src=/assets/media/profile-privacy.webp alt="The privacy choices: how the robot may check for other people, how to handle sensitive information, and whether to remember watch answers." url=localhost:8501/profile
 
 ## The privacy choices
 
@@ -65,7 +65,7 @@ Three questions, saved with **Save preferences**.
 | Microphone and camera | `audio_and_camera` | Listen first, then look around (the default). |
 | Neither | `none` | No detection; with a sensitive reminder the robot always asks on the watch. |
 
-**How should the robot handle sensitive reminders when someone else may hear them?**
+**How should the robot handle sensitive information when someone else may hear them?**
 
 - *Always say them out loud, whoever is present* (`always_disclose`)
 - *Ask me on the watch when someone else is present* (`always_ask` by default)

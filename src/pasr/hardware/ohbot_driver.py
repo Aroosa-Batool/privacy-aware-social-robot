@@ -38,6 +38,9 @@ a reminder title , so the driver removes it after every utterance (docs/PRIVACY.
 
 _SHELL_UNSAFE = re.compile(r"[\"'`$\;|&<>\n\r]")
 
+PLAYING_TIMEOUT_S = 10.0
+"""How long ``say`` waits, after the library's estimate of the end, for the sound to finish."""
+
 
 @dataclass(frozen=True, slots=True)
 class TurnPositions:
@@ -162,22 +165,45 @@ class OhbotDriver:
             self._require().move(motor, float(position), int(speed))
 
     def say(self, text: str, *, output_device: str | None = None) -> None:
-        """Blocking; returns when the library estimates the speech has finished.
+        """Blocking; returns once the speech has been played.
 
-        The library plays the speech with its module-level ``playsound`` (``afplay``: the macOS
-        default output). With ``output_device`` that function is swapped for one that plays on
-        the named device; the speech generation and lip sync stay the library's.
+        The library plays the speech on a thread of its own with its module-level ``playsound``
+        (``afplay``: the macOS default output), and returns when it estimates the speech is
+        over, often before its last syllable. With ``output_device`` that function is swapped for
+        one that plays on the named device; the speech generation and lip sync stay the
+        library's. Either way this waits for the playing to end, so the microphone, opened next
+        when a reminder is set by voice, does not hear the robot's own last words; and a sound
+        that could not be played raises here instead of on the library's thread.
         """
+        words = sanitise_speech(text)
+        if not words:
+            return
         with self._lock:
             lib = self._require()
-            lib.playsound = device_player(output_device) if output_device else self._default_player
+            player = device_player(output_device) if output_device else self._default_player
+            played = threading.Event()
+            failed: list[Exception] = []
+
+            def play(*args: Any, **kwargs: Any) -> None:
+                try:
+                    player(*args, **kwargs)
+                except Exception as exc:
+                    failed.append(exc)
+                finally:
+                    played.set()
+
+            lib.playsound = play
             # say() writes and reads ohbotData/ relative to the CWD on every call, but the
             # library creates that folder only once, at import.
             self._enter_work_dir()
             try:
-                lib.say(sanitise_speech(text), untilDone=True, lipSync=True)
+                lib.say(words, untilDone=True, lipSync=True)
+                if not played.wait(PLAYING_TIMEOUT_S):
+                    logger.warning("the robot's speech was still playing after its lips stopped")
             finally:
                 self._remove_speech_file()
+            if failed:
+                raise failed[0]
 
     def _require(self) -> Any:
         if self._lib is None:

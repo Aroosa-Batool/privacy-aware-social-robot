@@ -70,7 +70,8 @@ class ReminderSettings(_Group):
     default_time: time = setting(
         time(0, 0),
         tier="basic",
-        description="Time used when a reminder names a date but no time.",
+        description="Time used when a reminder typed on the dashboard or in the terminal names "
+        "a date but no time (said to the robot, it asks for the time).",
     )
     min_listen_seconds: float = setting(
         15.0,

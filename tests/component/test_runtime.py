@@ -1,12 +1,21 @@
 import asyncio
-from datetime import datetime, timedelta
+from contextlib import aclosing
+from datetime import date, datetime, time, timedelta
 
 import pytest
 
 from conftest import stand_ins
-from pasr.apps.reminder.capture import VoiceReminderCapture
+from pasr.apps.reminder.capture import (
+    ATTEMPTS,
+    END_OF_TURN_MS,
+    LISTEN_TIMEOUT_S,
+    NOT_SAVED,
+    OPENING,
+    PASSED,
+    VoiceReminderCapture,
+)
 from pasr.apps.reminder.due_flow import DueState
-from pasr.apps.reminder.service import DATE_QUESTION
+from pasr.apps.reminder.service import TIME_QUESTION, WHEN_QUESTION, spoken_time
 from pasr.domain.enums import (
     Biometric,
     DeliveryChannel,
@@ -23,6 +32,7 @@ from pasr.orchestration.lock import RuntimeBusyError
 from pasr.orchestration.runtime import Runtime
 from pasr.settings.schema import Settings
 from support.clock import VirtualClock
+from support.devices import SECONDS_PER_WORD
 from support.room import OWNER_TAG
 
 
@@ -80,34 +90,121 @@ async def test_enrolment_stores_only_embeddings(runtime: Runtime):
     await drive(runtime, body)
 
 
-async def test_voice_capture_asks_for_the_date_and_keeps_sensitive_titles_quiet(runtime: Runtime):
+def test_a_time_alone_is_today_or_tomorrow_once_it_has_passed(runtime: Runtime):
+    service, now = runtime.service, runtime.clock.now()  # 09:00
+    today, tomorrow = now.date(), now.date() + timedelta(days=1)
+    assert service.draft("Doctor at 2pm").date == today
+    assert service.draft("Standup at 09:00").date == today  # this very minute: now
+    assert service.draft("Breakfast at 8:59").date == tomorrow  # a minute ago
+    assert service.draft("Doctor on Friday").needs_time  # a date alone: the robot asks
+
+
+def capture(runtime: Runtime, *answers: tuple[float, float, str]):
+    """Capture a reminder by voice, the owner answering ``(after seconds, for seconds, text)``."""
+    room, start = runtime.hardware.room, runtime.clock.now()
+    for after, seconds, text in answers:
+        room.speak(OWNER_TAG, seconds, text=text, start=start + timedelta(seconds=after))
+    return VoiceReminderCapture(runtime.ctx, runtime.service).capture()
+
+
+def said(runtime: Runtime) -> list[str]:
+    return [line.text for line in runtime.hardware.room.spoken]
+
+
+async def test_a_date_alone_gets_asked_at_what_time_and_sensitive_titles_stay_quiet(
+    runtime: Runtime,
+):
     async def body():
-        room, clock = runtime.hardware.room, runtime.clock
-        capture = VoiceReminderCapture(runtime.ctx, runtime.service)
-        start = clock.now()
-        room.speak(
-            OWNER_TAG, 2.5, text="doctor appointment at 2pm", start=start + timedelta(seconds=4)
+        result = await capture(
+            runtime, (4, 2.5, "doctor appointment on Friday"), (12, 1.5, "at 2pm")
         )
-        room.speak(OWNER_TAG, 1.5, text="tomorrow", start=start + timedelta(seconds=12))
-        result = await capture.capture()
         assert result.reminder is not None, result.problem
         reminder = result.reminder
         assert reminder.sensitive
         assert reminder.origin is ReminderOrigin.VOICE
-        due = reminder.due_at.astimezone(start.tzinfo)  # the database returns local time
-        assert (due.date() - start.date()).days == 1
-        assert (due.hour, due.minute) == (14, 0)
-        said = [line.text for line in room.spoken]
-        assert DATE_QUESTION in said
-        assert "doctor" not in said[-1].lower()  # the confirmation never repeats it
+        due = reminder.due_at.astimezone(runtime.clock.now().tzinfo)  # the database: local
+        assert (due.date(), due.hour, due.minute) == (date(2026, 1, 9), 14, 0)  # Friday
+        *asked, confirmed = said(runtime)
+        assert asked == [OPENING, TIME_QUESTION]
+        assert confirmed.startswith("Okay. I saved a private reminder for Friday 9 January at ")
+        assert confirmed.endswith(f" at {spoken_time(reminder.due_at.time())}.")  # local time
+        assert "doctor" not in confirmed.lower()  # a sensitive title is never repeated
 
     await drive(runtime, body)
 
 
-async def test_voice_capture_with_silence(runtime: Runtime):
+def test_the_robot_says_times_as_people_do():
+    times = [time(20, 0), time(8, 30), time(12, 0), time(0, 0), time(9, 5)]
+    assert [spoken_time(t) for t in times] == ["8 PM", "8:30 AM", "12 PM", "12 AM", "9:05 AM"]
+
+
+async def test_no_date_or_time_gets_asked_when_then_at_what_time(runtime: Runtime):
     async def body():
-        result = await VoiceReminderCapture(runtime.ctx, runtime.service).capture()
+        result = await capture(
+            runtime, (4, 2, "doctor appointment"), (11, 1, "tomorrow"), (17, 1.5, "at 2pm")
+        )
+        assert result.reminder is not None, result.problem
+        due = result.reminder.due_at.astimezone(runtime.clock.now().tzinfo)
+        assert (due.date(), due.hour) == (date(2026, 1, 6), 14)
+        assert said(runtime)[:3] == [OPENING, WHEN_QUESTION, TIME_QUESTION]
+
+    await drive(runtime, body)
+
+
+async def test_a_missed_answer_is_asked_again_with_an_apology(runtime: Runtime):
+    async def body():
+        result = await capture(
+            runtime, (4, 2, "doctor appointment"), (10, 1, "um"), (16, 1.5, "tomorrow at 3pm")
+        )
+        assert result.reminder is not None, result.problem
+        assert said(runtime)[:3] == [
+            OPENING,
+            WHEN_QUESTION,
+            f"Sorry, I didn't catch that. {WHEN_QUESTION}",
+        ]
+
+    await drive(runtime, body)
+
+
+async def test_after_three_misses_the_reminder_is_not_saved(runtime: Runtime):
+    async def body():
+        start = runtime.clock.now()
+        result = await capture(runtime)  # nobody answers
         assert result.reminder is None
+        assert said(runtime) == [
+            OPENING,
+            f"Sorry, I didn't catch that. {OPENING}",
+            f"Sorry, I still didn't catch that. {OPENING} You can say, for example, "
+            "remind me to buy milk tomorrow at 10 AM.",
+            NOT_SAVED,
+        ]
+        speaking = SECONDS_PER_WORD * sum(len(text.split()) for text in said(runtime))
+        waited = (runtime.clock.now() - start).total_seconds() - speaking
+        assert waited == pytest.approx(ATTEMPTS * LISTEN_TIMEOUT_S, abs=1)  # 15 s each time
+        assert runtime.repos.reminders.all() == []
+
+    await drive(runtime, body)
+
+
+async def test_a_time_named_outright_that_has_passed_is_not_saved(runtime: Runtime):
+    async def body():
+        result = await capture(runtime, (4, 2.5, "call the bank today at 8am"))  # at 09:00
+        assert result.reminder is None
+        assert said(runtime)[-1] == PASSED
+
+    await drive(runtime, body)
+
+
+async def test_a_pause_mid_sentence_does_not_end_the_answer(runtime: Runtime):
+    async def body():
+        room, start = runtime.hardware.room, runtime.clock.now()
+        room.speak(OWNER_TAG, 2.0, start=start + timedelta(seconds=1))  # "remind me to …"
+        room.speak(OWNER_TAG, 1.5, start=start + timedelta(seconds=3.6))  # "… on Friday"
+        until = start + timedelta(seconds=10)
+        heard = runtime.ctx.speech_segments(until, min_silence_ms=END_OF_TURN_MS)
+        async with aclosing(heard) as segments:
+            answer = await anext(segments)
+        assert answer.duration_s >= 3.5  # one answer, across the 0.6 s pause
 
     await drive(runtime, body)
 

@@ -2,14 +2,24 @@
 
 macOS ``say`` and ``afplay`` always use the system default output, which AirPods or a display
 can take over. ``sounddevice`` can address any output device by name.
+
+The sound is handed to PortAudio in one blocking write, and PortAudio feeds the speaker from its
+own buffer without calling back into Python. ``sounddevice.play`` called a Python function for
+every few milliseconds of sound instead, so whenever the dashboard, the models or the live view
+held the interpreter (the GIL) for longer than the speaker's buffer, about 60 ms on a MacBook,
+the speaker ran dry for a moment: a crack. macOS does not report those, so a write that ran dry
+is logged here.
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from typing import Any
 
 from pasr.hardware.protocols import HardwareNotAvailableError
+
+logger = logging.getLogger(__name__)
 
 
 def _audio_libraries() -> tuple[Any, Any]:
@@ -48,7 +58,11 @@ def device_player(name: str) -> Callable[..., None]:
     index = find_output_device(name)
 
     def play(path: str, *args: Any, **kwargs: Any) -> None:
-        data, rate = soundfile.read(str(path), dtype="float32")
-        sounddevice.play(data, rate, device=index, blocking=True)
+        data, rate = soundfile.read(str(path), dtype="float32", always_2d=True)
+        with sounddevice.OutputStream(
+            samplerate=rate, device=index, channels=data.shape[1], dtype="float32"
+        ) as stream:  # closing waits until the last of it has played
+            if stream.write(data):
+                logger.warning("the robot's voice ran dry on %r for a moment (a crack)", name)
 
     return play

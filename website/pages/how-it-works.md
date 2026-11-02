@@ -24,8 +24,10 @@ their own words, stored as samples of about 4 seconds) and asks two questions:
 
 A reminder is typed on the dashboard, added with `pasr reminder add`, or spoken (the robot
 transcribes it locally with faster-whisper and never keeps the audio or the text of what you
-said). If it has no time, `reminder.default_time` (midnight) is used. If it has no date, the
-robot asks for one.
+said). A time without a date is today, or tomorrow once that minute has passed. Said to the
+robot, a reminder without a time gets asked *When should I remind you?* or *At what time should
+I remind you?*, each at most three times ([ADR 0015](/decisions/0015-asking-for-a-reminder-by-voice));
+typed, it asks for a missing date and uses `reminder.default_time` (midnight) for a missing time.
 
 A **sensitivity** model then reads the title: *doctor's appointment* is sensitive,
 *buy groceries* is not. The default is a zero-shot DeBERTa model that checks the title against a

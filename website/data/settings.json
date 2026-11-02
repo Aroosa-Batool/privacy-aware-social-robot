@@ -43,7 +43,7 @@
     "default": "00:00",
     "tier": "basic",
     "limits": [],
-    "description": "Time used when a reminder names a date but no time."
+    "description": "Time used when a reminder typed on the dashboard or in the terminal names a date but no time (said to the robot, it asks for the time)."
   },
   {
     "key": "reminder.min_listen_seconds",

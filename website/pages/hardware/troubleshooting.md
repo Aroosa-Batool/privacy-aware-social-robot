@@ -31,6 +31,16 @@ uv sync
 The voice follows the macOS default output. Set the speaker:
 `uv run pasr config set hardware.speaker.output_device "MacBook Air Speakers"`.
 
+### The voice crackles
+
+With `hardware.speaker.output_device` set, the robot plays its voice from the dashboard's own
+process. It used to be fed to the speaker a few milliseconds at a time, and whenever the
+dashboard or a model kept the process busy for longer than the speaker's small buffer (about
+60 ms on a MacBook), the speaker ran dry for a moment: a crack. Now each sentence is handed over
+whole and played from the audio system's own buffer. Should it still crackle, look in the
+terminal for *the robot's voice ran dry*: if that line is there, the laptop was too busy; if not,
+the crackle comes from the speaker itself (turn the volume down a little).
+
 ### The Ohbot is not found
 
 Use the `cu.*` port, not `tty.*`, and set it explicitly if other USB serial devices are attached

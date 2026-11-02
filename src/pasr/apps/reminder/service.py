@@ -18,6 +18,11 @@ from pasr.storage.repos import Repositories
 
 PAST_TOLERANCE = timedelta(minutes=1)
 DATE_QUESTION = "On what date should I remind you?"
+"""Asked on the dashboard and in the terminal, which then use ``reminder.default_time``."""
+WHEN_QUESTION = "When should I remind you?"
+TIME_QUESTION = "At what time should I remind you?"
+"""The robot's questions when a reminder said by voice names no date or time, or only a date
+(ADR 0015)."""
 
 
 class ReminderError(ValueError):
@@ -32,7 +37,12 @@ class ReminderDraft:
 
     @property
     def needs_date(self) -> bool:
+        """Neither a date nor a time was named: a time alone dates itself (``draft``)."""
         return self.date is None
+
+    @property
+    def needs_time(self) -> bool:
+        return self.time is None
 
 
 class ReminderService:
@@ -55,7 +65,7 @@ class ReminderService:
         if not text.strip():
             raise ReminderError("the reminder is empty")
         parsed = self.perception.datetime_parser.parse(text, self.clock.now())
-        return ReminderDraft(parsed.title, parsed.date, parsed.time)
+        return self._dated(ReminderDraft(parsed.title, parsed.date, parsed.time))
 
     def answer_date(self, draft: ReminderDraft, answer: str) -> ReminderDraft:
         """Fill in the date from the owner's answer to the counter-question."""
@@ -63,6 +73,28 @@ class ReminderService:
         if parsed.date is None:
             raise ReminderError(f"could not find a date in {answer!r}")
         return replace(draft, date=parsed.date, time=draft.time or parsed.time)
+
+    def answer_when(self, draft: ReminderDraft, answer: str) -> ReminderDraft:
+        """Fill in what the owner's answer to "when?" or "at what time?" names: a date, a time,
+        or both. Raises if it names neither."""
+        parsed = self.perception.datetime_parser.parse(answer, self.clock.now())
+        if parsed.date is None and parsed.time is None:
+            raise ReminderError(f"could not find a date or a time in {answer!r}")
+        return self._dated(
+            replace(draft, date=parsed.date or draft.date, time=parsed.time or draft.time)
+        )
+
+    def _dated(self, draft: ReminderDraft) -> ReminderDraft:
+        """A time without a date is today, or tomorrow once that minute has passed ("at 15:00"
+        said at 15:01 is tomorrow; said at 15:00:30, now)."""
+        if draft.date is not None or draft.time is None:
+            return draft
+        now = self.clock.now()
+        today = now.date()
+        passed = datetime.combine(today, draft.time, tzinfo=now.tzinfo) < now.replace(
+            second=0, microsecond=0
+        )
+        return replace(draft, date=today + timedelta(days=1) if passed else today)
 
     def due_at(self, draft: ReminderDraft) -> datetime:
         if draft.date is None:
@@ -132,9 +164,19 @@ class ReminderService:
         return self.repos.reminders.all([ReminderStatus.SCHEDULED, ReminderStatus.ACTIVE])
 
 
+def spoken_time(moment: time) -> str:
+    """A time as people say it: "8 PM", "8:30 AM", "12 PM" for noon. Text-to-speech reads
+    "20:00" as "two thousand"."""
+    hour = moment.hour % 12 or 12
+    minutes = f":{moment.minute:02d}" if moment.minute else ""
+    return f"{hour}{minutes} {'AM' if moment.hour < 12 else 'PM'}"
+
+
 def confirmation(reminder: Reminder) -> str:
-    """What the robot says after saving. A sensitive title is never repeated out loud."""
-    when = f"{reminder.due_at:%A %d %B} at {reminder.due_at:%H:%M}"
+    """What the robot says after saving, with the day and the time as people say them. A
+    sensitive title is never repeated out loud."""
+    due = reminder.due_at
+    when = f"{due:%A} {due.day} {due:%B} at {spoken_time(due.time())}"
     if reminder.sensitive:
         return f"Okay. I saved a private reminder for {when}."
     return f"Okay. I will remind you about {reminder.title} on {when}."

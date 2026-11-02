@@ -185,7 +185,7 @@ MODALITY_OPTIONS = {
     DetectionModality.AUDIO_AND_CAMERA: "Microphone and camera",
     DetectionModality.NONE: "Neither , do not detect bystanders",
 }
-POLICY_QUESTION = "How should the robot handle sensitive reminders?"
+POLICY_QUESTION = "How should the robot handle sensitive information?"
 POLICY_OPTIONS = {
     DisclosurePolicy.ALWAYS_DISCLOSE: "Always say them, whoever is present",
     DisclosurePolicy.ALWAYS_ASK: "Always ask me on the watch first when someone else is present",
