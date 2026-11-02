@@ -10,7 +10,7 @@ from datetime import timedelta
 
 import numpy as np
 
-from pasr.domain.enums import Direction, Pose, WatchAnswer
+from pasr.domain.enums import Direction, Pose, Tilt, WatchAnswer
 from pasr.domain.media import AudioChunk, Frame
 from pasr.hardware.factory import HardwareBundle
 from pasr.hardware.protocols import HardwareNotAvailableError
@@ -26,6 +26,10 @@ class TaggedFrame(Frame):
     faces: tuple[SeenFace, ...] = ()
 
 
+TILT_NODS = {Tilt.LEVEL: 0.0, Tilt.UP: 1.0, Tilt.DOWN: -1.0}
+"""HEADNOD units from level for each row of the scan: up moves faces down in the image."""
+
+
 class FakeHead:
     """Turns the simulated head; the fake camera sees whoever is in that direction."""
 
@@ -34,6 +38,8 @@ class FakeHead:
         self.clock = clock
         self.pose_history: list[Pose] = []
         self.nudges: list[tuple[float, float]] = []
+        self.views: list[tuple[float, Direction]] = []
+        """(nod, direction) of every ``look``, for checking the scan's path."""
 
     async def connect(self) -> None:
         pass
@@ -47,6 +53,13 @@ class FakeHead:
             await self.clock.sleep(1.0 / max(speed, 1))
         self.room.head_direction = direction
         self.room.head_offset = (0.0, nodded)
+        self.views.append((nodded, direction))
+
+    async def tilt(self, tilt: Tilt, speed: int = 5) -> None:
+        turned, nodded = self.room.head_offset
+        if TILT_NODS[tilt] != nodded:
+            await self.clock.sleep(1.0 / max(speed, 1))
+        self.room.head_offset = (turned, TILT_NODS[tilt])
 
     async def nudge(self, turn: float, nod: float, speed: int = 5) -> tuple[float, float]:
         self.nudges.append((turn, nod))

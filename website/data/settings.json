@@ -91,7 +91,7 @@
     "default": true,
     "tier": "advanced",
     "limits": [],
-    "description": "With the camera allowed, also scan the room when only the owner's voice was heard (a silent bystander may be present). Off: scan only after silence."
+    "description": "With the camera allowed, also scan the room when only the owner's voice, or voices of people the owner allowed before, were heard (a silent bystander may be present). Off: scan only after silence."
   },
   {
     "key": "consent.timeout_seconds",
@@ -275,15 +275,51 @@
     "key": "scan.positions",
     "group": "scan",
     "default": [
-      "left",
+      "right",
       "front",
-      "right"
+      "left"
     ],
     "tier": "basic",
     "limits": [
       "min length 1"
     ],
-    "description": "Head directions the robot looks at when scanning the room with the camera."
+    "description": "Head directions the robot looks at in the room scan, in this order in the first row. Each next row starts from the end nearest to where the head is, so it only nods between rows."
+  },
+  {
+    "key": "scan.tilts",
+    "group": "scan",
+    "default": [
+      "level",
+      "up",
+      "down"
+    ],
+    "tier": "basic",
+    "limits": [
+      "min length 1"
+    ],
+    "description": "Rows of the room scan, in this order: the head nods to each and looks in every direction. It sweeps the rows again and again until the due time, or until it has found and recognised someone other than the owner; the first row is always swept."
+  },
+  {
+    "key": "scan.study_seconds",
+    "group": "scan",
+    "default": 10.0,
+    "tier": "basic",
+    "limits": [
+      "> 0",
+      "≤ 60"
+    ],
+    "description": "Longest time the robot looks closer at a face that does not clearly match the owner before deciding who it is; the sweep waits meanwhile. With following on, the head also turns and nods towards it."
+  },
+  {
+    "key": "scan.study_views",
+    "group": "scan",
+    "default": 5,
+    "tier": "advanced",
+    "limits": [
+      "≥ 1",
+      "≤ 30"
+    ],
+    "description": "Views in full view of such a face that the robot gathers, and averages, to recognise it."
   },
   {
     "key": "scan.settle_seconds",
@@ -324,18 +360,7 @@
     "default": false,
     "tier": "basic",
     "limits": [],
-    "description": "Follow a face that is not in full view (cut off, too small, unclear or turned away) and matches nobody: the head turns and nods towards it until it is, then the face is compared with the owner and the remembered bystanders. Off: the robot only looks in the fixed directions."
-  },
-  {
-    "key": "scan.follow.seconds",
-    "group": "scan",
-    "default": 5.0,
-    "tier": "basic",
-    "limits": [
-      "> 0",
-      "≤ 30"
-    ],
-    "description": "Longest time the head follows one face; the camera stays on meanwhile. If the face is still not in full view, its best view so far is compared."
+    "description": "While the robot looks closer at a face that does not clearly match the owner, the head turns and nods towards it until it is in full view (not cut off, too small, unclear or turned away). Off: the head stays where it is meanwhile."
   },
   {
     "key": "scan.follow.min_face_px",
@@ -525,6 +550,39 @@
       "≤ 10"
     ],
     "description": "HEADTURN position for 'right'."
+  },
+  {
+    "key": "hardware.ohbot.nod_level",
+    "group": "hardware",
+    "default": 6.0,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 10"
+    ],
+    "description": "HEADNOD position for the room scan's level row (the attention pose's)."
+  },
+  {
+    "key": "hardware.ohbot.nod_up",
+    "group": "hardware",
+    "default": 8.0,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 10"
+    ],
+    "description": "HEADNOD position for the scan's 'up' row. If the head looks down there, swap it with nod_down."
+  },
+  {
+    "key": "hardware.ohbot.nod_down",
+    "group": "hardware",
+    "default": 4.0,
+    "tier": "advanced",
+    "limits": [
+      "≥ 0",
+      "≤ 10"
+    ],
+    "description": "HEADNOD position for the 'down' row."
   },
   {
     "key": "hardware.ohbot.move_seconds",

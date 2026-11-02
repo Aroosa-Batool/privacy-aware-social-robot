@@ -36,15 +36,20 @@ vad:
   max_segment_seconds: 10.0
 scan:
   positions:
-  - left
-  - front
   - right
+  - front
+  - left
+  tilts:
+  - level
+  - up
+  - down
+  study_seconds: 10.0
+  study_views: 5
   settle_seconds: 0.6
   frames_per_position: 3
   head_speed: 5
   follow:
     enabled: false
-    seconds: 5.0
     min_face_px: 60
     min_score: 0.7
     edge_margin: 0.03
@@ -78,6 +83,9 @@ hardware:
     turn_left: 2.0
     turn_front: 5.0
     turn_right: 8.0
+    nod_level: 6.0
+    nod_up: 8.0
+    nod_down: 4.0
     move_seconds: 0.8
   speaker:
     backend: ohbot

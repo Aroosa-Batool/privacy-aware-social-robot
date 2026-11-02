@@ -24,7 +24,7 @@ minute until 6 stretches of speech are in.
 
 One or two other people, **one at a time, alone in view**: frames with two faces are not used.
 Each clicks **Measure another person** and follows the same instructions. Their samples are
-scored and forgotten; tell them it is for your research.
+scored and forgotten.
 
 @step Choose the line and save it
 

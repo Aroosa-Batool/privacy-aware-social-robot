@@ -32,7 +32,7 @@ Each condition of the study is a combination of two settings, chosen on the dash
 | **Consent** | Asks on the watch whenever someone else is present, and keeps nothing about the person. | `privacy.disclosure_policy: always_ask` |
 | **Privacy management** | Asks once per person, then remembers the answer with an anonymous label and embedding. | `privacy.disclosure_policy: ask_once_per_bystander` |
 | **Microphone only** | Listens for voices that are not the owner's; the camera stays off. | `privacy.detection_modality: audio_only` |
-| **Microphone, then camera** | Listens first, then looks left, front and right for people who stay silent. | `privacy.detection_modality: audio_and_camera` |
+| **Microphone, then camera** | Listens first, then sweeps the room until the due time for people who stay silent. | `privacy.detection_modality: audio_and_camera` |
 
 What the robot did in each session (who it detected, what it asked, how it delivered each
 reminder) is recorded as labels and numbers in the [event log](/research/event-log). See

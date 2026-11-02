@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
 
-from pasr.domain.enums import Direction, Pose
+from pasr.domain.enums import Direction, Pose, Tilt
 from pasr.hardware.protocols import HardwareNotAvailableError
 from pasr.hardware.speaker.output import device_player
 from pasr.paths import OHBOT_WORK_DIR
@@ -53,6 +53,18 @@ class TurnPositions:
             Direction.FRONT: self.front,
             Direction.RIGHT: self.right,
         }[direction]
+
+
+@dataclass(frozen=True, slots=True)
+class NodPositions:
+    """HEADNOD positions for the scan's rows; calibrate on the real head."""
+
+    level: float
+    up: float
+    down: float
+
+    def for_tilt(self, tilt: Tilt) -> float:
+        return {Tilt.LEVEL: self.level, Tilt.UP: self.up, Tilt.DOWN: self.down}[tilt]
 
 
 POSES: dict[Pose, dict[int, float]] = {

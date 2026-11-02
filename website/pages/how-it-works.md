@@ -65,15 +65,24 @@ For a sensitive reminder with the microphone allowed, the robot listens for
 `listen_window_minutes` (5 minutes). A voice-activity detector (Silero VAD) cuts the audio into
 speech segments, and the speaker model (SpeechBrain ECAPA) turns each one into an embedding. A
 segment whose similarity to the owner's voice is below `identity.voice_threshold` belongs to
-someone else: an **audio bystander**. Remembered bystanders are recognised by voice too.
+someone else: an **audio bystander**. Remembered bystanders are recognised by voice too. With
+the ask-once policy, the voice of someone the owner allowed before is only noted: the robot
+listens on, and then still scans for silent people. It stops listening once it hears someone it
+must ask about, or someone the owner declined for.
 
 ## Scan
 
-If nobody else was heard and the camera is allowed, the head turns **left, front and right**
-and the camera looks for silent bystanders. Each face found by InsightFace is compared with the
-owner's face and with remembered bystanders (`identity.face_threshold`). With **following** on,
-a face that is cut off, too small or turned away is followed with the head until it is in full
-view ([ADR 0009](/decisions/0009-follow-faces)).
+If nobody else was heard and the camera is allowed, the head sweeps the room for silent
+bystanders **until the due time** (the last 2 minutes): level, then up, then down, looking
+**right, front and left**; each next row starts from the side where the head already is, so it
+only nods between rows, again and again. Each face found by InsightFace is
+compared with the owner's face and with remembered bystanders (`identity.face_threshold`). A
+face that does not clearly match the owner is **looked at closer** before the sweep goes on:
+several views, averaged, decide who it is; with **following** on, the head also turns and nods
+towards it until it is in full view. Someone the owner allowed before is noted and the sweep goes
+on; once it finds someone it must ask about, or someone the owner declined for, it stops. If the
+due time comes first, it found no one (or only people allowed before)
+([ADR 0012](/decisions/0012-scan-until-due)).
 
 The robot also scans when it heard only the owner (`reminder.scan_if_only_owner_heard`), because
 a silent person may still be in the room.

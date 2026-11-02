@@ -669,6 +669,27 @@ def test_each_breaker_is_amber_where_it_turned_the_reminder():
         "pending",
         "done: to watch",
     ]
+    # heard only someone allowed before: still looked for silent people, saw none, and spoke
+    allowed = flow_through(
+        *START,
+        "LISTENING",
+        "AUDIO_BYSTANDER",
+        "SCANNING",
+        "CHECK_MEMORY",
+        "WAIT_FOR_DUE",
+        "DISCLOSE_SPEAK",
+        "DONE",
+        planned="spoken",
+        delivered="spoken",
+    )
+    assert marks(allowed)[3:] == [
+        "done: heard someone",
+        "done",  # the scan ran, and saw no one
+        "done: allowed before",
+        "pending",
+        "done: spoken",
+    ]
+    assert not any("via-" in classes for classes, _ in route(allowed))  # green all the way
     # no answer on the watch
     no_answer = flow_through(
         *START, "AWAITING_CONSENT", "WAIT_FOR_DUE", "DISCLOSE_WATCH", "DONE", answer="timeout"

@@ -71,6 +71,14 @@ class Direction(StrEnum):
     RIGHT = "right"
 
 
+class Tilt(StrEnum):
+    """How far the robot's head nods while it scans the room: one row of directions each."""
+
+    LEVEL = "level"
+    UP = "up"
+    DOWN = "down"
+
+
 class Pose(StrEnum):
     ATTENTION = "attention"
     REST = "rest"

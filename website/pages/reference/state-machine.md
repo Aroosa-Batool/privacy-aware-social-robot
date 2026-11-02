@@ -18,8 +18,10 @@ stateDiagram-v2
     LISTENING --> AUDIO_BYSTANDER: non-owner voice
     LISTENING --> SCANNING: camera allowed, no stranger heard
     LISTENING --> NO_BYSTANDER: audio only, no stranger heard
-    SCANNING --> VISUAL_BYSTANDER: non-owner face
-    SCANNING --> NO_BYSTANDER: only the owner in view
+    AUDIO_BYSTANDER --> SCANNING: only people allowed before heard
+    SCANNING --> VISUAL_BYSTANDER: someone to ask about or declined
+    SCANNING --> NO_BYSTANDER: only the owner, until the due time
+    SCANNING --> CHECK_MEMORY: saw no one, heard only allowed people
     AUDIO_BYSTANDER --> CHECK_MEMORY
     VISUAL_BYSTANDER --> CHECK_MEMORY
     CHECK_MEMORY --> WAIT_FOR_DUE: remembered yes or no
@@ -44,7 +46,7 @@ closed). Decisions live in one pure function, `domain/policy.py:decide`, tested 
 | `CHECKING_PRESENCE` | Ping the owner's watch. No answer → `OWNER_AWAY`. |
 | `OWNER_AWAY` | Nothing is sensed or said; deliver on the watch. |
 | `LISTENING` | Listen for `listen_window_minutes`; identify each speech segment. |
-| `SCANNING` | Look left, front, right (following faces if on); identify each face. |
+| `SCANNING` | Sweep each row (level, up, down) right, front, left, each next row from the side where the head is, until the due time; look closer at a face that does not clearly match the owner (following it if on); note people allowed before and go on; stop once someone to ask about, or declined for, is recognised. |
 | `AUDIO_BYSTANDER` · `VISUAL_BYSTANDER` | Someone other than the owner was heard or seen. |
 | `NO_BYSTANDER` | Only the owner, or nobody. |
 | `CHECK_MEMORY` | Under *ask once*, look up remembered answers for the people found. |

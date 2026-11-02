@@ -75,11 +75,13 @@ stateDiagram-v2
     CHECKING_PRESENCE --> AWAITING_CONSENT: detection = none
     CHECKING_PRESENCE --> LISTENING: sensitive, mic allowed
     CHECKING_PRESENCE --> SCANNING: sensitive, camera only
-    LISTENING --> AUDIO_BYSTANDER: non-owner voice
+    LISTENING --> AUDIO_BYSTANDER: non-owner voice (to ask about, declined, or only allowed ones)
     LISTENING --> SCANNING: camera allowed, no stranger heard
     LISTENING --> NO_BYSTANDER: audio only, no stranger heard
-    SCANNING --> VISUAL_BYSTANDER: non-owner face (left/front/right, or followed)
-    SCANNING --> NO_BYSTANDER: only the owner in view
+    AUDIO_BYSTANDER --> SCANNING: heard only people allowed before: look for silent ones
+    SCANNING --> VISUAL_BYSTANDER: someone to ask about or declined (sweeps until due, rows up/down)
+    SCANNING --> NO_BYSTANDER: nobody but the owner, until the due time
+    SCANNING --> CHECK_MEMORY: saw no one, heard only people allowed before
     AUDIO_BYSTANDER --> CHECK_MEMORY
     VISUAL_BYSTANDER --> CHECK_MEMORY
     CHECK_MEMORY --> WAIT_FOR_DUE: remembered yes (speak) / remembered no (watch)

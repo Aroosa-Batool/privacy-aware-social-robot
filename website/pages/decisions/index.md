@@ -25,3 +25,4 @@ framework to how the camera survives a USB drop. They are rendered here straight
 | 0009 | Follow a face with the head until it is in full view, off by default. |
 | 0010 | The camera in a helper process, and every problem as a toast. |
 | 0011 | The robot guides face enrolment through five poses, coaches each one and says how it went. |
+| 0012 | Sweep the room row by row until the due time; look closer at a face before deciding who it is. |

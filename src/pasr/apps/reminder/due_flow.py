@@ -12,7 +12,7 @@ import asyncio
 import itertools
 import logging
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from contextlib import AbstractContextManager, aclosing
 from dataclasses import dataclass, field, replace
 from datetime import timedelta
@@ -26,10 +26,11 @@ from pasr.domain.enums import (
     DisclosurePolicy,
     Pose,
     ReminderStatus,
+    Tilt,
     WatchAnswer,
 )
 from pasr.domain.framing import ViewProblem, after_move, head_move, offset, view_problems
-from pasr.domain.identity import Identification, IdentityKind, cosine, identify
+from pasr.domain.identity import Identification, IdentityKind, average, cosine, identify
 from pasr.domain.media import Frame
 from pasr.domain.models import Embedding, Reminder
 from pasr.domain.policy import Decision, decide, requires_detection
@@ -73,8 +74,8 @@ TRANSITIONS: dict[DueState, frozenset[DueState]] = {
     ),
     S.OWNER_AWAY: frozenset({S.WAIT_FOR_DUE}),
     S.LISTENING: frozenset({S.AUDIO_BYSTANDER, S.SCANNING, S.NO_BYSTANDER}),
-    S.SCANNING: frozenset({S.VISUAL_BYSTANDER, S.NO_BYSTANDER}),
-    S.AUDIO_BYSTANDER: frozenset({S.CHECK_MEMORY}),
+    S.SCANNING: frozenset({S.VISUAL_BYSTANDER, S.NO_BYSTANDER, S.CHECK_MEMORY}),
+    S.AUDIO_BYSTANDER: frozenset({S.CHECK_MEMORY, S.SCANNING}),
     S.VISUAL_BYSTANDER: frozenset({S.CHECK_MEMORY}),
     S.NO_BYSTANDER: frozenset({S.WAIT_FOR_DUE}),
     S.CHECK_MEMORY: frozenset({S.AWAITING_CONSENT, S.WAIT_FOR_DUE}),
@@ -230,27 +231,44 @@ class DueFlow:
             else:
                 self._go(DueState.LISTENING, "sensitive reminder: listening for other voices")
                 heard_owner = await self._listen()
-        if self.detected:
+        # voices of people the owner allowed before do not end the search: the robot goes on
+        # to look for anyone else, as if it had heard only the owner
+        heard_allowed = bool(self.detected) and self._only_allowed()
+        if self.detected and not heard_allowed:
             self._go(DueState.AUDIO_BYSTANDER, "heard someone other than the owner")
         elif modality.looks and (
             not modality.listens
-            or not heard_owner
+            or not (heard_owner or heard_allowed)
             or self.settings.reminder.scan_if_only_owner_heard
         ):
+            if heard_allowed:
+                self._go(DueState.AUDIO_BYSTANDER, "heard only people the owner allowed before")
             self._go(
                 DueState.SCANNING,
                 "sensitive reminder: looking for bystanders, camera only"
                 if not modality.listens
+                else "only people allowed before heard: looking for silent bystanders"
+                if heard_allowed
                 else "only the owner heard: looking for silent bystanders"
                 if heard_owner
                 else "silence: looking for silent bystanders",
             )
-            await self._scan()
+            heard = set(self.detected)
+            sweeps = await self._scan()
             if not self.detected:
-                self._go(DueState.NO_BYSTANDER, "nobody but the owner in view")
+                swept = f"{sweeps} full sweep(s)" if sweeps else "part of a sweep"
+                self._go(DueState.NO_BYSTANDER, f"found no one: {swept} until the due time")
                 await self._deliver(DeliveryChannel.SPOKEN, "owner is alone")
                 return
-            self._go(DueState.VISUAL_BYSTANDER, "saw someone other than the owner")
+            if set(self.detected) != heard:  # it saw someone; else straight to the decision
+                self._go(
+                    DueState.VISUAL_BYSTANDER,
+                    "saw only people the owner allowed before, until the due time"
+                    if self._only_allowed()
+                    else "saw someone other than the owner",
+                )
+        elif heard_allowed:
+            self._go(DueState.AUDIO_BYSTANDER, "heard only people the owner allowed before")
         else:
             self._go(DueState.NO_BYSTANDER, "no other voices heard")
             await self._deliver(DeliveryChannel.SPOKEN, "owner is alone")
@@ -361,7 +379,9 @@ class DueFlow:
 
     async def _listen(self, share: float = 1.0) -> bool:
         """Listen until the deadline, for at most ``share`` of the time left; returns whether
-        the owner was heard."""
+        the owner was heard. A voice of someone the owner allowed before (ask-once policy) is
+        noted and the robot listens on; it stops once it hears someone it must ask about, or
+        someone the owner declined for."""
         ctx, reminder_settings = self.ctx, self.settings.reminder
         until = listen_deadline(
             ctx.clock.now(),
@@ -373,6 +393,7 @@ class DueFlow:
         )
         owner = ctx.repos.owner.embeddings(Biometric.VOICE)
         known = ctx.repos.bystanders.embeddings(Biometric.VOICE)
+        safe = self._allowed_before(known)
         pending: dict[str, DetectedPerson] = {}
         heard_owner = False
         non_owner_segments = 0
@@ -388,53 +409,131 @@ class DueFlow:
                     ctx.live.voice(segment.duration_s, *self._describe(result, known))
                     if result.kind is IdentityKind.OWNER:
                         heard_owner = True
-                    else:
+                    elif result.bystander_id not in safe:
                         non_owner_segments += 1
                         if non_owner_segments >= needed:
                             break
         if non_owner_segments >= needed:
             self.detected.update(pending)
+        else:  # only people allowed before, if anyone: present all the same, for the decision
+            self.detected.update({key: p for key, p in pending.items() if key in safe})
         return heard_owner
 
-    async def _scan(self) -> None:
+    async def _scan(self) -> int:
+        """Sweep the room until the due time: each row (``scan.tilts``), every direction
+        (``scan.positions``), again and again, each row the other way from the one before
+        (``scan_path``). A view that would not end, head back at the front, by the due time is
+        not begun, so scanning never makes the reminder late. A face that does not clearly
+        match the owner is looked at closer before the sweep goes on (``_study``). Someone the
+        owner allowed before (ask-once policy) is noted and the sweep goes on, looking for anyone
+        else; once it recognises someone the owner must be asked about, or declined for, the
+        scan stops there. The first row is always swept, so a flow that started late still looks
+        once. Returns the number of full sweeps."""
         ctx, scan = self.ctx, self.settings.scan
         head, camera = ctx.hardware.head, ctx.hardware.camera
         owner = ctx.repos.owner.embeddings(Biometric.FACE)
         known = ctx.repos.bystanders.embeddings(Biometric.FACE)
         pending: dict[str, DetectedPerson] = {}
+        safe = self._allowed_before(known)
+        per_sweep = len(scan.tilts) * len(scan.positions)
+        started = ctx.clock.now()
+        looked = frames = 0
+        at: Direction | None = None
+
+        def head_at() -> Direction | None:
+            """Where the head points now: the last view's direction (read as each row begins)."""
+            return at
+
         with self._live("scanning the room"):
             await camera.open()
             try:
-                for direction in scan.positions:
+                # the longest view so far without a closer look; a view begins only if it and
+                # the head's way back to the front (no longer than a view) fit before the due time
+                view = timedelta(0)
+                for tilt, direction in scan_path(scan.tilts, scan.positions, head_at):
+                    begun = ctx.clock.now()
+                    if any(key not in safe for key in pending) or (
+                        looked >= len(scan.positions) and begun + 2 * view > self.reminder.due_at
+                    ):
+                        break
+                    await head.tilt(tilt, scan.head_speed)
                     await head.look(direction, scan.head_speed)
                     await ctx.clock.sleep(scan.settle_seconds)
-                    for _ in range(scan.frames_per_position):
-                        frame = await camera.grab()
-                        marks = []
-                        to_follow: list[FaceObservation] = []
-                        for face in await ctx.compute(ctx.perception.face.detect_and_embed, frame):
-                            problems = self._needs_following(face, frame, owner, known, pending)
-                            if problems:
-                                to_follow.append(face)
-                                label = f"Not in full view ({', '.join(problems)}): following"
-                                marks.append(FaceMark(face.box, label, Tone.IGNORED))
-                                continue
-                            result = self._identify(
-                                face.embedding, Biometric.FACE, owner, known, pending, direction
-                            )
-                            marks.append(FaceMark(face.box, *self._describe(result, known)))
-                        ctx.live.face(frame, marks, note=f"looking {direction.value}")
-                        for number, face in enumerate(to_follow):
-                            if number:  # back to the view the face was seen in
-                                await head.look(direction, scan.head_speed)
-                                await ctx.clock.sleep(scan.settle_seconds)
-                            await self._follow(face, frame, direction, owner, known, pending)
-                        if to_follow:  # following took this direction's remaining frames
-                            break
+                    used, closer = await self._look_around(
+                        tilt, direction, owner, known, pending, safe
+                    )
+                    frames += used
+                    looked += 1
+                    at = direction
+                    if not closer:
+                        view = max(view, ctx.clock.now() - begun)
             finally:
                 await camera.close()
+                await head.tilt(Tilt.LEVEL, scan.head_speed)
                 await head.look(Direction.FRONT, scan.head_speed)
         self.detected.update(pending)
+        sweeps = looked // per_sweep
+        ctx.bus.emit(
+            EventType.ROOM_SCANNED,
+            reminder_id=self.reminder.id,
+            count=sweeps,
+            frames=frames,
+            seconds=round((ctx.clock.now() - started).total_seconds(), 1),
+            reason="found someone"
+            if any(key not in safe for key in pending)
+            else "found only people allowed before"
+            if pending
+            else "found no one",
+        )
+        return sweeps
+
+    async def _look_around(
+        self,
+        tilt: Tilt,
+        direction: Direction,
+        owner: list[Embedding],
+        known: dict[str, list[Embedding]],
+        pending: dict[str, DetectedPerson],
+        safe: set[str],
+    ) -> tuple[int, bool]:
+        """Up to ``scan.frames_per_position`` frames in one direction. Faces that match the
+        owner, or someone allowed before (``safe``) already recognised in this scan, are noted;
+        another face is looked at closer, and that ends this view. Returns the frames analysed,
+        and whether it looked closer at a face."""
+        ctx, scan = self.ctx, self.settings.scan
+        note = f"looking {direction.value}" + (
+            f", head {tilt.value}" if tilt is not Tilt.LEVEL else ""
+        )
+        for count in range(1, scan.frames_per_position + 1):
+            frame = await ctx.hardware.camera.grab()
+            marks: list[FaceMark] = []
+            unclear: list[FaceObservation] = []
+            for face in await ctx.compute(ctx.perception.face.detect_and_embed, frame):
+                match = self._match(face.embedding, Biometric.FACE, owner, known, pending)
+                if match.kind is IdentityKind.OWNER or (
+                    match.bystander_id in safe and match.bystander_id in pending
+                ):
+                    result = self._identify(
+                        face.embedding, Biometric.FACE, owner, known, pending, direction
+                    )
+                    marks.append(FaceMark(face.box, *self._describe(result, known)))
+                else:
+                    unclear.append(face)
+                    marks.append(
+                        FaceMark(face.box, "Not recognised yet: looking closer", Tone.IGNORED)
+                    )
+            ctx.live.face(frame, marks, note=note)
+            for number, face in enumerate(unclear):
+                if number:  # back to the view the face was seen in
+                    await ctx.hardware.head.tilt(tilt, scan.head_speed)
+                    await ctx.hardware.head.look(direction, scan.head_speed)
+                    await ctx.clock.sleep(scan.settle_seconds)
+                result = await self._study(face, frame, direction, note, owner, known, pending)
+                if result.kind is not IdentityKind.OWNER and result.bystander_id not in safe:
+                    return count, True  # someone to ask about, or declined for: done
+            if unclear:  # looking closer took this view's remaining frames
+                return count, True
+        return scan.frames_per_position, False
 
     def _view_problems(self, face: FaceObservation, frame: Frame) -> tuple[ViewProblem, ...]:
         if face.box is None:
@@ -443,55 +542,48 @@ class DueFlow:
         rules = self.settings.scan.follow.full_view()
         return view_problems(face.box, face.score, face.landmarks, (width, height), rules)
 
-    def _needs_following(
-        self,
-        face: FaceObservation,
-        frame: Frame,
-        owner: list[Embedding],
-        known: dict[str, list[Embedding]],
-        pending: dict[str, DetectedPerson],
-    ) -> tuple[ViewProblem, ...]:
-        """Why the head should follow ``face``: following is on, the face is not in full view,
-        and it matches neither the owner nor anyone remembered or found so far. Empty: compare
-        the face as it is (also when the plugin gives no box to follow)."""
-        if not self.settings.scan.follow.enabled:
-            return ()
-        problems = self._view_problems(face, frame)
-        if not problems:
-            return ()
-        match = self._match(face.embedding, Biometric.FACE, owner, known, pending)
-        return problems if match.kind is IdentityKind.NEW_BYSTANDER else ()
-
-    async def _follow(
+    async def _study(
         self,
         face: FaceObservation,
         frame: Frame,
         direction: Direction,
+        note: str,
         owner: list[Embedding],
         known: dict[str, list[Embedding]],
         pending: dict[str, DetectedPerson],
-    ) -> None:
-        """Turn and nod towards ``face`` until it is in full view, then compare it. Fails
-        closed: if time runs out or the face is lost, its best view so far is compared, so a
-        face never seen in full view still counts."""
+    ) -> Identification:
+        """Look closer at a face that did not clearly match the owner, and recognise it from
+        several views: their average is compared with the owner and the remembered bystanders,
+        which evens out one poor frame. With following on, the head turns and nods towards the
+        face until it is in full view. It stops after ``scan.study_views`` views in full view,
+        after ``scan.study_seconds``, or once the face is lost; then the views so far decide (the
+        best one if none was in full view), so a face never seen well still counts."""
         ctx, scan = self.ctx, self.settings.scan
         follow = scan.follow
         head, camera = ctx.hardware.head, ctx.hardware.camera
         started = ctx.clock.now()
-        deadline = started + timedelta(seconds=follow.seconds)
+        deadline = started + timedelta(seconds=scan.study_seconds)
         turn_gain = -follow.turn_gain if follow.invert_turn else follow.turn_gain
         nod_gain = -follow.nod_gain if follow.invert_nod else follow.nod_gain
-        note = f"following a face ({direction.value})"
+        note = f"{note}: looking closer"
         height, width = frame.image.shape[:2]
+        size = (width, height)
         current, problems = face, self._view_problems(face, frame)
-        best = (current, frame, problems)
-        expected = (0.0, 0.0)  # where ``current`` should be in the next frame
+        views = [(current, problems)]
+        # where ``current`` should be in the next frame
+        expected = offset(current.box, size) if current.box is not None else (0.0, 0.0)
         moves = misses = 0
         nodded = 0.0
         seen_now = True  # ``current`` is in the latest frame: safe to move towards it
-        while problems and misses < MAX_MISSES and ctx.clock.now() < deadline:
-            if seen_now and current.box is not None:
-                expected = offset(current.box, (width, height))
+
+        def clear() -> list[FaceObservation]:
+            return [view for view, view_problems in views if not view_problems]
+
+        while (
+            len(clear()) < scan.study_views and misses < MAX_MISSES and ctx.clock.now() < deadline
+        ):
+            if follow.enabled and problems and seen_now and current.box is not None:
+                expected = offset(current.box, size)
                 turn, nod = head_move(expected, turn_gain=turn_gain, nod_gain=nod_gain)
                 if turn or nod:
                     moved = await head.nudge(turn, nod, scan.head_speed)
@@ -501,7 +593,7 @@ class DueFlow:
                     await ctx.clock.sleep(scan.settle_seconds)
             frame = await camera.grab()
             seen = await ctx.compute(ctx.perception.face.detect_and_embed, frame)
-            match = _same_face(current, seen, expected, (width, height))
+            match = _same_face(current, seen, expected, size)
             seen_now = match is not None
             if match is None:
                 misses += 1
@@ -509,23 +601,32 @@ class DueFlow:
                 continue
             misses = 0
             current, problems = match, self._view_problems(match, frame)
-            if _rank(current, problems) > _rank(best[0], best[2]):
-                best = (current, frame, problems)
-            label = f"Following ({', '.join(problems)})" if problems else "In full view"
+            if current.box is not None:
+                expected = offset(current.box, size)
+            views.append((current, problems))
+            label = (
+                f"Not in full view ({', '.join(problems)})"
+                if problems
+                else f"Looking closer ({len(clear())}/{scan.study_views})"
+            )
             ctx.live.face(frame, [FaceMark(current.box, label, Tone.IGNORED)], note=note)
         if nodded:
             await head.nudge(0.0, -nodded, scan.head_speed)
-        face, frame, problems = best
-        result = self._identify(face.embedding, Biometric.FACE, owner, known, pending, direction)
-        ctx.live.face(frame, [FaceMark(face.box, *self._describe(result, known))], note=note)
+        chosen = clear() or [max(views, key=lambda view: _rank(*view))[0]]
+        probe = average([view.embedding for view in chosen])
+        result = self._identify(probe, Biometric.FACE, owner, known, pending, direction)
+        ctx.live.face(frame, [FaceMark(current.box, *self._describe(result, known))], note=note)
         ctx.bus.emit(
-            EventType.FACE_FOLLOWED,
+            EventType.FACE_STUDIED,
             reminder_id=self.reminder.id,
             direction=direction.value,
-            ready=not problems,
+            identity=result.kind.value,
+            ready=bool(clear()),
             count=moves,
+            frames=len(views),
             seconds=round((ctx.clock.now() - started).total_seconds(), 1),
         )
+        return result
 
     # --- consent ------------------------------------------------------------------------
 
@@ -559,6 +660,18 @@ class DueFlow:
                 now=now,
                 reminder_id=self.reminder.id,
             )
+
+    def _allowed_before(self, people: Iterable[str]) -> set[str]:
+        """Who among ``people`` (bystander ids) the owner allowed before, under the ask-once
+        policy: hearing or seeing them does not end the listening or the scan."""
+        if self.settings.privacy.disclosure_policy is not DisclosurePolicy.ASK_ONCE_PER_BYSTANDER:
+            return set()
+        remembered = self.ctx.repos.consents.effective(people)
+        return {key for key, allowed in remembered.items() if allowed}
+
+    def _only_allowed(self) -> bool:
+        """Everyone detected so far is someone the owner allowed before."""
+        return set(self.detected) <= self._allowed_before(self.detected)
 
     def _remembered(self) -> dict[str, bool]:
         stored = [k for k, p in self.detected.items() if p.stored]
@@ -656,6 +769,28 @@ class DueFlow:
             await ctx.hardware.head.pose(Pose.REST)
         except Exception:
             logger.exception("could not rest the head")
+
+
+SIDE = {Direction.LEFT: -1, Direction.FRONT: 0, Direction.RIGHT: 1}
+"""Where each direction lies across the room, to tell which end of a row is nearer."""
+
+
+def scan_path(
+    tilts: Sequence[Tilt],
+    positions: Sequence[Direction],
+    where: Callable[[], Direction | None],
+) -> Iterator[tuple[Tilt, Direction]]:
+    """The room scan's views, row after row without end. Each row starts from its end nearest
+    to where the head points as the row begins (``where``), so between rows the head only nods
+    and never swings back across the room, whatever came before: the last row, a closer look at
+    a face, a sweep with an odd number of rows. With both ends as near (or the head nowhere
+    yet), the row goes in the order of ``positions``."""
+    first, last = positions[0], positions[-1]
+    for tilt in itertools.cycle(tilts):
+        at = where()
+        reverse = at is not None and abs(SIDE[last] - SIDE[at]) < abs(SIDE[first] - SIDE[at])
+        for direction in positions[::-1] if reverse else positions:
+            yield tilt, direction
 
 
 def _same_face(

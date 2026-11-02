@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from pasr.domain.enums import DetectionModality, Direction, DisclosurePolicy, FacePose
+from pasr.domain.enums import DetectionModality, Direction, DisclosurePolicy, FacePose, Tilt
 from pasr.domain.framing import FullView
 from pasr.domain.identity import Aggregate
 from pasr.domain.timing import LATE_LISTEN_SHARE
@@ -96,8 +96,9 @@ class ReminderSettings(_Group):
     scan_if_only_owner_heard: bool = setting(
         True,
         tier="advanced",
-        description="With the camera allowed, also scan the room when only the owner's voice "
-        "was heard (a silent bystander may be present). Off: scan only after silence.",
+        description="With the camera allowed, also scan the room when only the owner's voice, "
+        "or voices of people the owner allowed before, were heard (a silent bystander may be "
+        "present). Off: scan only after silence.",
     )
 
 
@@ -226,18 +227,9 @@ class FollowSettings(_Group):
     enabled: bool = setting(
         False,
         tier="basic",
-        description="Follow a face that is not in full view (cut off, too small, unclear or "
-        "turned away) and matches nobody: the head turns and nods towards it until it is, then "
-        "the face is compared with the owner and the remembered bystanders. Off: the robot only "
-        "looks in the fixed directions.",
-    )
-    seconds: float = setting(
-        5.0,
-        tier="basic",
-        gt=0,
-        le=30,
-        description="Longest time the head follows one face; the camera stays on meanwhile. "
-        "If the face is still not in full view, its best view so far is compared.",
+        description="While the robot looks closer at a face that does not clearly match the "
+        "owner, the head turns and nods towards it until it is in full view (not cut off, too "
+        "small, unclear or turned away). Off: the head stays where it is meanwhile.",
     )
     min_face_px: int = setting(
         60,
@@ -305,9 +297,36 @@ class FollowSettings(_Group):
 class ScanSettings(_Group):
     positions: list[Direction] = setting(
         tier="basic",
-        default_factory=lambda: [Direction.LEFT, Direction.FRONT, Direction.RIGHT],
+        default_factory=lambda: [Direction.RIGHT, Direction.FRONT, Direction.LEFT],
         min_length=1,
-        description="Head directions the robot looks at when scanning the room with the camera.",
+        description="Head directions the robot looks at in the room scan, in this order in the "
+        "first row. Each next row starts from the end nearest to where the head is, so it only "
+        "nods between rows.",
+    )
+    tilts: list[Tilt] = setting(
+        tier="basic",
+        default_factory=lambda: [Tilt.LEVEL, Tilt.UP, Tilt.DOWN],
+        min_length=1,
+        description="Rows of the room scan, in this order: the head nods to each and looks in "
+        "every direction. It sweeps the rows again and again until the due time, or until it "
+        "has found and recognised someone other than the owner; the first row is always swept.",
+    )
+    study_seconds: float = setting(
+        10.0,
+        tier="basic",
+        gt=0,
+        le=60,
+        description="Longest time the robot looks closer at a face that does not clearly match "
+        "the owner before deciding who it is; the sweep waits meanwhile. With following on, the "
+        "head also turns and nods towards it.",
+    )
+    study_views: int = setting(
+        5,
+        tier="advanced",
+        ge=1,
+        le=30,
+        description="Views in full view of such a face that the robot gathers, and averages, "
+        "to recognise it.",
     )
     settle_seconds: float = setting(
         0.6, tier="advanced", ge=0, le=10, description="Wait after moving the head before looking."
@@ -374,6 +393,24 @@ class OhbotSettings(_Group):
     )
     turn_right: float = setting(
         8.0, tier="advanced", ge=0, le=10, description="HEADTURN position for 'right'."
+    )
+    nod_level: float = setting(
+        6.0,
+        tier="advanced",
+        ge=0,
+        le=10,
+        description="HEADNOD position for the room scan's level row (the attention pose's).",
+    )
+    nod_up: float = setting(
+        8.0,
+        tier="advanced",
+        ge=0,
+        le=10,
+        description="HEADNOD position for the scan's 'up' row. If the head looks down there, "
+        "swap it with nod_down.",
+    )
+    nod_down: float = setting(
+        4.0, tier="advanced", ge=0, le=10, description="HEADNOD position for the 'down' row."
     )
     move_seconds: float = setting(
         0.8,

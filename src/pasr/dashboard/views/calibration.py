@@ -55,7 +55,7 @@ faces are not used.
 
 1. **You**, alone in front of the robot.
 2. **Then each other person**, alone, in the same seat, one at a time. They follow the same
-   instructions. Tell them it is for your research: their samples are only scored, never stored.
+   instructions. Their samples are only scored, never stored.
 3. **Choose the line** and save it. The robot uses it right away.
 
 Do it where you will use the robot: same seat, same light, about an arm's length away. Two

@@ -3,13 +3,14 @@ import asyncio
 import pytest
 
 from fakes import install_fake_ohbot
-from pasr.domain.enums import Direction, Pose
+from pasr.domain.enums import Direction, Pose, Tilt
 from pasr.hardware.head.real import OhbotHead
 from pasr.hardware.ohbot_driver import (
     HEADNOD,
     HEADTURN,
     LIDBLINK,
     POSES,
+    NodPositions,
     OhbotDriver,
     TurnPositions,
 )
@@ -21,7 +22,13 @@ from pasr.hardware.speaker.real import MacSaySpeaker, OhbotSpeaker
 def head(monkeypatch, tmp_path):
     fake = install_fake_ohbot(monkeypatch)
     driver = OhbotDriver("auto", tmp_path)
-    head = OhbotHead("auto", turns=TurnPositions(2, 5, 8), move_seconds=0.0, driver=driver)
+    head = OhbotHead(
+        "auto",
+        turns=TurnPositions(2, 5, 8),
+        nods=NodPositions(6, 8, 4),
+        move_seconds=0.0,
+        driver=driver,
+    )
     return fake, head
 
 
@@ -41,6 +48,22 @@ async def test_head_looks_poses_blinks_and_rests_on_close(head):
     await head.close()
     assert fake.calls[-1] == ("close",)
     await head.close()  # idempotent
+
+
+async def test_tilt_nods_to_each_scan_row_and_only_when_it_changes(head):
+    fake, head = head
+    await head.connect()
+    await head.pose(Pose.ATTENTION)
+    fake.calls.clear()
+    await head.tilt(Tilt.UP, speed=4)
+    await head.tilt(Tilt.UP)  # already there: no move
+    await head.tilt(Tilt.DOWN)
+    await head.tilt(Tilt.LEVEL)  # the attention pose's nod: back where it started
+    assert fake.calls == [
+        ("move", HEADNOD, 8.0, 4),
+        ("move", HEADNOD, 4.0, 5),
+        ("move", HEADNOD, 6.0, 5),
+    ]
 
 
 async def test_nudge_turns_and_nods_from_where_the_head_points(head):

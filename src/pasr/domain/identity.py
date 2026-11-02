@@ -54,6 +54,12 @@ def cosine(a: Embedding, b: Embedding) -> float:
     return float(np.dot(a.vector, b.vector))
 
 
+def average(embeddings: Sequence[Embedding]) -> Embedding:
+    """One embedding for several samples of one person by one model: their normalised mean,
+    which evens out what differs from sample to sample (light, pose, blur)."""
+    return Embedding.of(np.mean([e.vector for e in embeddings], axis=0), embeddings[0].model)
+
+
 def similarity(
     probe: Embedding, references: Sequence[Embedding], aggregate: Aggregate
 ) -> float | None:
@@ -64,8 +70,7 @@ def similarity(
         return None
     if aggregate is Aggregate.MAX:
         return max(cosine(probe, r) for r in same_model)
-    mean = Embedding.of(np.mean([r.vector for r in same_model], axis=0), probe.model)
-    return cosine(probe, mean)
+    return cosine(probe, average(same_model))
 
 
 def identify(

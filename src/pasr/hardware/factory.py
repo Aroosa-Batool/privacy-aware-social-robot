@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pasr.hardware.camera.real import ImageFolderCamera, OpenCVCamera
 from pasr.hardware.head.real import OhbotHead
 from pasr.hardware.microphone.real import SoundDeviceMicrophone, WavFileMicrophone
-from pasr.hardware.ohbot_driver import TurnPositions
+from pasr.hardware.ohbot_driver import NodPositions, TurnPositions
 from pasr.hardware.protocols import Camera, Microphone, RobotHead, Speaker, Watch
 from pasr.hardware.speaker.real import MacSaySpeaker, OhbotSpeaker
 from pasr.hardware.watch.bangle import BangleWatch, BleakTransport
@@ -48,6 +48,7 @@ def build_hardware(
     head: RobotHead = OhbotHead(
         o.port,
         turns=TurnPositions(o.turn_left, o.turn_front, o.turn_right),
+        nods=NodPositions(o.nod_level, o.nod_up, o.nod_down),
         move_seconds=o.move_seconds,
     )
 

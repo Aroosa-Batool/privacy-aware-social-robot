@@ -22,7 +22,7 @@ the microphone and the camera, so an experiment can be repeated on exactly the s
 
 :::cards 3
 alarm-clock | [Remind you](/dashboard/reminders) | Typed, spoken or quick-test reminders, sorted into sensitive or not by a local model.
-ear | [Notice bystanders](/how-it-works#listen) | It hears voices that are not yours, then looks left, front and right for silent people.
+ear | [Notice bystanders](/how-it-works#listen) | It hears voices that are not yours, then sweeps the room until the due time for silent people.
 watch | [Ask before speaking](/hardware/watch) | A Yes/No prompt on your wrist. No answer counts as no.
 users | [Remember consent](/dashboard/people) | Optionally keeps your answer per person, as an anonymous label and an embedding.
 activity | [Show its work](/dashboard/home) | A live pipeline, a research log, and an optional window of what it recognises.

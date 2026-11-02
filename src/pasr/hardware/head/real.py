@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import asyncio
 
-from pasr.domain.enums import Direction, Pose
+from pasr.domain.enums import Direction, Pose, Tilt
 from pasr.hardware.ohbot_driver import (
     HEADNOD,
     HEADTURN,
     LIDBLINK,
     POSES,
+    NodPositions,
     OhbotDriver,
     TurnPositions,
 )
@@ -34,11 +35,13 @@ class OhbotHead:
         port: str,
         *,
         turns: TurnPositions,
+        nods: NodPositions,
         move_seconds: float,
         driver: OhbotDriver | None = None,
     ) -> None:
         self.driver = driver or OhbotDriver.shared(port)
         self.turns = turns
+        self.nods = nods
         self.move_seconds = move_seconds
         self._position: float | None = None
         self._nod: float | None = None
@@ -61,6 +64,14 @@ class OhbotHead:
         delta = FULL_TURN if self._position is None else abs(target - self._position)
         self._position = target
         await self._arrive(delta, speed)
+
+    async def tilt(self, tilt: Tilt, speed: int = 5) -> None:
+        target = self.nods.for_tilt(tilt)
+        start = POSES[Pose.ATTENTION][HEADNOD] if self._nod is None else self._nod
+        if target != start:
+            await asyncio.to_thread(self.driver.move, HEADNOD, target, speed)
+            self._nod = target
+            await self._arrive(abs(target - start), speed)
 
     async def nudge(self, turn: float, nod: float, speed: int = 5) -> tuple[float, float]:
         start_turn = self.turns.front if self._position is None else self._position

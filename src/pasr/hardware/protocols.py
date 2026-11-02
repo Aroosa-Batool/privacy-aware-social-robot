@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from typing import Protocol
 
-from pasr.domain.enums import Direction, Pose, WatchAnswer
+from pasr.domain.enums import Direction, Pose, Tilt, WatchAnswer
 from pasr.domain.media import AudioChunk, Frame
 
 
@@ -20,6 +20,10 @@ class RobotHead(Protocol):
     async def close(self) -> None: ...
 
     async def look(self, direction: Direction, speed: int = 5) -> None: ...
+
+    async def tilt(self, tilt: Tilt, speed: int = 5) -> None:
+        """Nod to the row ``tilt`` of the room scan; ``look`` keeps it."""
+        ...
 
     async def nudge(self, turn: float, nod: float, speed: int = 5) -> tuple[float, float]:
         """Turn by ``turn`` and nod by ``nod`` motor units from where the head points, within

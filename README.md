@@ -75,7 +75,9 @@ Or do it all in the dashboard (`uv run pasr dashboard`):
    nothing said out loud; the reminder goes to the watch. It checks again right before speaking.
 4. **When a sensitive reminder is due** , the robot wakes up 7 minutes early and listens for 5
    minutes. A voice that is not the owner's means a bystander. If it hears no stranger and the
-   camera is allowed, it looks left, front and right for silent bystanders. If someone is there,
+   camera is allowed, it sweeps the room (three head heights; right, front, left) for silent
+   bystanders until the due time, looking closer at any face it does not recognise at once. If
+   someone is there,
    it asks on the watch. *Yes* → it says the reminder at the due time. *No* or no answer → the
    reminder goes to the watch instead. Any error → the watch (fail closed).
 5. **Consent memory** , with the ask-once policy, answers are remembered per bystander (as an

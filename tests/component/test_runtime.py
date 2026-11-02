@@ -190,7 +190,7 @@ def assert_scanned_in_the_last_30_percent(runtime: Runtime, due: datetime) -> No
     at = entered(runtime)
     listened = at[DueState.SCANNING] - at[DueState.LISTENING]
     assert abs(listened - 0.7 * (due - at[DueState.LISTENING])) < timedelta(seconds=1)
-    assert at[DueState.NO_BYSTANDER] < due  # scanned before the due time
+    assert at[DueState.NO_BYSTANDER] <= due  # scanned until, not past, the due time
     assert at[DueState.DISCLOSE_SPEAK] == due  # so it is not said late
 
 

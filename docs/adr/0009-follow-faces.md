@@ -1,6 +1,8 @@
 # 0009 , Following a face with the head during the room scan
 
-**Status:** accepted
+**Status:** accepted; amended by [0012](0012-scan-until-due.md): the closer look at a
+face now happens with following off too, bounded by `scan.study_seconds`, and is logged as
+`perception.face_studied`
 
 **Context.** The room scan looks in fixed directions (left, front, right). A person standing
 between two of them, near the edge of the image, or turned away gives a poor face embedding: the

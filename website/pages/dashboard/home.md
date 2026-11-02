@@ -27,7 +27,7 @@ The row of eight stages follows the reminder being handled right now, or the las
 | **Wake** | The flow started (`WAKING`). |
 | **Presence** | The owner's watch answered the ping. Not reached if the owner is away. |
 | **Listen** | Listening ended: a stranger heard, or not. Skipped with the camera only. |
-| **Scan** | The head looked left, front and right. Skipped with audio only or when a stranger was already heard. |
+| **Scan** | The head swept the room until the due time, or until it recognised someone. Skipped with audio only or when a stranger was already heard. |
 | **Decide** | The policy chose speak, ask or watch. |
 | **Consent** | The owner answered on the watch, or the prompt timed out. Skipped when not needed. |
 | **Deliver** | Said out loud or shown on the watch, at the due time. |

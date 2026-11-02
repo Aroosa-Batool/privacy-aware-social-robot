@@ -17,7 +17,8 @@ table, `event_log`, with the columns `ts`, `session_id`, `type`, `reminder_id`, 
 | `owner.presence` | The watch was pinged. | `present` |
 | `perception.voice` | A speech segment was identified. | `identity`, `similarity`, `plugin` |
 | `perception.face` | A face was identified during a scan. | `identity`, `similarity`, `plugin` |
-| `perception.face_followed` | The head followed a face. | `direction`, `ready`, `count` (moves), `seconds` |
+| `perception.face_studied` | The robot looked closer at a face it did not recognise at once. | `direction`, `identity` (decided from the averaged views), `ready` (seen in full view), `count` (head moves), `frames`, `seconds` |
+| `perception.scan` | A room scan ended. | `count` (full sweeps), `frames`, `seconds`, `reason` (found someone / found only people allowed before / found no one) |
 | `consent.requested` | The watch prompt was shown. | `count` (people detected) |
 | `consent.answered` | The owner answered, or the prompt timed out. | `answer` |
 | `consent.revoked` | A remembered answer was withdrawn. | |
@@ -65,7 +66,8 @@ print(voice.groupby("identity").similarity.describe())
 | How often it failed closed, and why | `flow.error` (`error_type`) |
 | Owner response rate and time | `consent.requested` → `consent.answered` |
 | Delivery punctuality | `reminder.delivered` (`late_seconds`) |
-| Cost of following faces | `perception.face_followed` (`count`, `seconds`) |
+| Cost of looking closer and following | `perception.face_studied` (`count`, `frames`, `seconds`) |
+| How much of the room each scan covered | `perception.scan` (`count`, `seconds`) |
 
 ## Retention
 

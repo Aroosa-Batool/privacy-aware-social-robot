@@ -52,9 +52,11 @@ Scenario tests `owner_away_never_senses` and `owner_leaves_before_due` check it.
 The camera is opened only for enrolment and the scan step, closed in `finally`, in a helper
 process that releases it if the robot's process dies. With detection *audio only* the flow never
 reaches the scan (`audio_only_never_uses_camera`); with *camera only* it never opens the
-microphone to look for bystanders (`camera_only_never_listens`). Following faces keeps the camera
-on at most `scan.follow.seconds` longer per face, and logs only the direction, whether the face
-came into full view, the number of moves and the seconds.
+microphone to look for bystanders (`camera_only_never_listens`). The scan keeps the camera on
+until the due time (2 minutes when the reminder is on time) unless it finds someone sooner, and
+logs only how many sweeps it made and whether it found someone; a closer look at one face logs
+only the direction, who it turned out to be, whether the face came into full view, the number of
+head moves and frames, and the seconds.
 
 ### Following never makes speaking more likely
 
