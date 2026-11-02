@@ -11,8 +11,9 @@ stages the robot's state machine walks through ([full diagram](/reference/state-
 ## Profile: the owner registers
 
 Before anything else the owner registers once, on the dashboard's [Profile](/dashboard/profile)
-page or with `pasr setup`. The robot captures **embeddings** of the owner's face (5 samples) and
-voice (3 speech segments) and asks two questions:
+page or with `pasr setup`. The robot captures **embeddings** of the owner's face (4 images in each
+of 5 poses) and voice (30 seconds of speech, read aloud from a text on the screen and then in
+their own words, stored as samples of about 4 seconds) and asks two questions:
 
 | Question | Choices | Setting |
 |---|---|---|
@@ -63,9 +64,13 @@ the owner. Bangle.js 1 cannot reliably tell whether it is being worn.
 
 For a sensitive reminder with the microphone allowed, the robot listens for
 `listen_window_minutes` (5 minutes). A voice-activity detector (Silero VAD) cuts the audio into
-speech segments, and the speaker model (SpeechBrain ECAPA) turns each one into an embedding. A
-segment whose similarity to the owner's voice is below `identity.voice_threshold` belongs to
-someone else: an **audio bystander**. Remembered bystanders are recognised by voice too. With
+speech segments, and the speaker model (SpeechBrain ECAPA) turns each one into an embedding,
+compared with the average of the owner's voice samples. A segment whose similarity is below
+`identity.voice_threshold` may be someone else; one short segment is too little to tell, so a
+voice becomes an **audio bystander** only once `identity.min_nonowner_seconds` (3 s) of its
+speech is heard and that speech, taken together, still does not match the owner
+([ADR 0013](/decisions/0013-voice-enrolment-and-pooled-voice-evidence)). Remembered bystanders
+are recognised by voice too. With
 the ask-once policy, the voice of someone the owner allowed before is only noted: the robot
 listens on, and then still scans for silent people. It stops listening once it hears someone it
 must ask about, or someone the owner declined for.

@@ -22,7 +22,7 @@ from enum import StrEnum
 import numpy as np
 import numpy.typing as npt
 
-from pasr.domain.media import AudioChunk, Frame
+from pasr.domain.media import AudioChunk, Frame, level_db
 
 MAX_FRAME_WIDTH = 960
 """Wider frames are shrunk before they are kept."""
@@ -152,9 +152,7 @@ class LiveFeed:
         view = self._view
         if not view.active:
             return
-        samples = chunk.samples
-        rms = float(np.sqrt(np.mean(np.square(samples)))) if len(samples) else 0.0
-        level = Level(round(20 * math.log10(max(rms, 1e-6)), 1), speech >= threshold)
+        level = Level(round(level_db(chunk.samples), 1), speech >= threshold)
         levels, voices = self._sound(view)
         self._view = replace(
             view,

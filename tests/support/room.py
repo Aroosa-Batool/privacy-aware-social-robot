@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import itertools
+import math
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -149,6 +150,16 @@ class Room:
                 return utterance
         return None
 
+    def voice_during(self, start: datetime, end: datetime) -> Utterance | None:
+        """Who spoke for the longest part of ``start``..``end`` (segments joined across pauses
+        span them)."""
+        overlaps = [
+            (min(u.end, end) - max(u.start, start), u)
+            for u in self.utterances
+            if u.start < end and start < u.end
+        ]
+        return max(overlaps, key=lambda pair: pair[0])[1] if overlaps else None
+
     def set_faces(self, direction: Direction, people: list[str]) -> None:
         self.faces[direction] = list(dict.fromkeys(people))
 
@@ -194,11 +205,13 @@ class Room:
             seen.append(SeenFace(person, box, landmarks, clarity, view))
         return tuple(seen)
 
-    def stage_owner(self, *, voice_samples: int, segment_s: float = 2.0) -> None:
-        """Put the owner in front of the robot, talking, so enrolment has something to capture."""
+    def stage_owner(self, *, voice_seconds: float, segment_s: float = 2.0) -> None:
+        """Put the owner in front of the robot, talking for ``voice_seconds`` and a little more
+        (what the robot says in between is missed), so enrolment has something to capture."""
         if OWNER_TAG not in self.faces[Direction.FRONT]:
             self.faces[Direction.FRONT].append(OWNER_TAG)
-        self.stage_speaker(OWNER_TAG, samples=voice_samples, segment_s=segment_s)
+        samples = math.ceil(voice_seconds / segment_s) + 5
+        self.stage_speaker(OWNER_TAG, samples=samples, segment_s=segment_s)
 
     def clear_upcoming(self) -> None:
         """Drop utterances that have not started yet (e.g. before staging someone else)."""

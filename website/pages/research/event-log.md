@@ -15,7 +15,8 @@ table, `event_log`, with the columns `ts`, `session_id`, `type`, `reminder_id`, 
 | `flow.state` | The reminder flow moves to a new state. | `reason` |
 | `flow.error` | A flow failed and went to the watch. | `error_type` |
 | `owner.presence` | The watch was pinged. | `present` |
-| `perception.voice` | A speech segment was identified. | `identity`, `similarity`, `plugin` |
+| `perception.voice` | A speech segment was identified. | `identity`, `similarity`, `plugin`, `seconds` (segment length), `level` (loudness, dBFS) |
+| `perception.voice_pooled` | A voice other than the owner's had enough speech to judge, and was judged on all of it (ADR 0013). | `identity` (owner / someone_else), `similarity` (of the averaged segments), `samples` (segments), `seconds` (their speech) |
 | `perception.face` | A face was identified during a scan. | `identity`, `similarity`, `plugin` |
 | `perception.face_studied` | The robot looked closer at a face it did not recognise at once. | `direction`, `identity` (decided from the averaged views), `ready` (seen in full view), `count` (head moves), `frames`, `seconds` |
 | `perception.scan` | A room scan ended. | `count` (full sweeps), `frames`, `seconds`, `reason` (found someone / found only people allowed before / found no one) |
@@ -26,8 +27,8 @@ table, `event_log`, with the columns `ts`, `session_id`, `type`, `reminder_id`, 
 | `reminder.created` | A reminder was added. | `sensitive`, `origin` |
 | `reminder.delivered` | Said or shown on the watch. | `channel`, `late_seconds` |
 | `reminder.missed` | Found too late, or the watch was unreachable at the due time. | `reason` |
-| `owner.enrolled` | Face or voice enrolled. | `modality`, `samples`, `plugin` |
-| `owner.enrolment_failed` | Face or voice enrolment stored nothing. | `modality`, `reason`, `pose` (face) or `samples` (voice) |
+| `owner.enrolled` | Face or voice enrolled. | `modality`, `samples`, `plugin`; voice: `seconds` (speech), `unusable` (samples left out), `similarity` (median fit of each sample to the others) |
+| `owner.enrolment_failed` | Face or voice enrolment stored nothing. | `modality`, `reason`, `pose` (face) or `samples` and `seconds` (voice) |
 | `owner.face_pose` | One pose of a face enrolment, stored or not. | `pose`, `samples`, `frames`, `no_face`, `several` (faces), `unusable`, `reason` (commonest reason a frame went unused), `turned` and `tilt` (medians, see ADR 0011), `seconds` |
 | `identity.calibrated` | A threshold was saved by calibration. | `modality`, `plugin`, `threshold`, `count` |
 | `settings.changed` | Settings were saved. | `count` (settings changed) |
@@ -36,7 +37,7 @@ table, `event_log`, with the columns `ts`, `session_id`, `type`, `reminder_id`, 
 
 `EventBus.emit` accepts only these keys, with scalar values and strings of at most 80 characters,
 and raises otherwise: `answer`, `channel`, `count`, `decision`, `direction`, `error_type`, `faces`,
-`frames`, `identity`, `late_seconds`, `modality`, `mode`, `no_face`, `origin`, `plugin`,
+`frames`, `identity`, `late_seconds`, `level`, `modality`, `mode`, `no_face`, `origin`, `plugin`,
 `policy`, `pose`, `present`, `ready`, `reason`, `samples`, `seconds`, `sensitive`, `several`,
 `similarity`, `threshold`, `tilt`, `turned`, `unusable`. Tests check that reminder
 titles never appear in the log.

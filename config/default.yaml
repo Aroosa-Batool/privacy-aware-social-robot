@@ -17,7 +17,7 @@ identity:
   voice_threshold: 0.35
   face_threshold: 0.4
   min_voice_segment_seconds: 1.0
-  min_nonowner_segments: 1
+  min_nonowner_seconds: 3.0
   enroll_face_poses:
   - front
   - left
@@ -26,9 +26,10 @@ identity:
   - down
   enroll_face_samples: 4
   enroll_face_pose_seconds: 15.0
-  enroll_voice_samples: 3
-  enroll_timeout_seconds: 30.0
+  enroll_voice_seconds: 30.0
+  enroll_timeout_seconds: 120.0
   aggregate: max
+  voice_aggregate: mean
 vad:
   speech_threshold: 0.5
   min_speech_ms: 250

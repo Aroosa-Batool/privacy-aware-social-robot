@@ -43,7 +43,7 @@ async def test_allowed_voices_are_noted_and_the_robot_listens_and_looks_on(make_
 
     async def body() -> None:
         runtime.enrollment.register("Owner")
-        room.stage_owner(voice_samples=runtime.settings.identity.enroll_voice_samples + 2)
+        room.stage_owner(voice_seconds=runtime.settings.identity.enroll_voice_seconds)
         await runtime.enrollment.enroll_voice()
         await runtime.enrollment.enroll_face()
         room.clear_upcoming()

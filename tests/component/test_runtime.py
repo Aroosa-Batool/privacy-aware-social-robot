@@ -16,7 +16,7 @@ from pasr.domain.enums import (
     ReminderStatus,
     WatchAnswer,
 )
-from pasr.orchestration.enrollment import EnrollmentError
+from pasr.orchestration.enrollment import VOICE_CHUNK_SECONDS, EnrollmentError
 from pasr.orchestration.events import EventType
 from pasr.orchestration.handle import RuntimeHandle
 from pasr.orchestration.lock import RuntimeBusyError
@@ -42,9 +42,7 @@ async def drive(runtime: Runtime, coro_fn):
 
 async def enroll(runtime: Runtime) -> None:
     runtime.enrollment.register("Owner")
-    runtime.hardware.room.stage_owner(
-        voice_samples=runtime.settings.identity.enroll_voice_samples + 2
-    )
+    runtime.hardware.room.stage_owner(voice_seconds=runtime.settings.identity.enroll_voice_seconds)
     await runtime.enrollment.enroll_voice()
     await runtime.enrollment.enroll_face()
 
@@ -75,7 +73,8 @@ async def test_enrolment_stores_only_embeddings(runtime: Runtime):
         identity = runtime.settings.identity
         faces = identity.enroll_face_samples * len(identity.enroll_face_poses)
         assert counts[Biometric.FACE][0] == faces
-        assert counts[Biometric.VOICE][0] == runtime.settings.identity.enroll_voice_samples
+        # samples of about VOICE_CHUNK_SECONDS of speech each
+        assert counts[Biometric.VOICE][0] >= identity.enroll_voice_seconds // VOICE_CHUNK_SECONDS
         assert runtime.hardware.room.camera_on is False  # camera released after enrolment
 
     await drive(runtime, body)

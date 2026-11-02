@@ -22,10 +22,11 @@ from pasr.hardware.camera.real import ImageFolderCamera
 from pasr.hardware.check import check_devices
 from pasr.hardware.microphone.real import WavFileMicrophone
 from pasr.hardware.protocols import HardwareNotAvailableError
-from pasr.orchestration.calibration import THRESHOLD_FIELDS
+from pasr.orchestration.calibration import THRESHOLD_FIELDS, VOICE_SAMPLES, VOICE_SECONDS
 from pasr.orchestration.enrollment import (
     FACE_GUIDANCE,
     VOICE_GUIDANCE,
+    VOICE_PASSAGE,
     EnrollmentError,
     EnrollProgress,
 )
@@ -194,7 +195,7 @@ POLICY_OPTIONS = {
 
 
 def _progress_line(progress: EnrollProgress) -> None:
-    detail = f"{progress.collected}/{progress.wanted} samples"
+    detail = f"{progress.collected}/{progress.wanted} {progress.unit}"
     if progress.pose is not None:
         detail += f" · pose: {progress.pose}"
     if progress.modality is Biometric.FACE:
@@ -214,8 +215,8 @@ async def _enroll(settings: Settings, *, face: bool, voice: bool) -> list[str]:
     await runtime.start(run_apps=False)
     try:
         if voice:
-            seconds = settings.identity.enroll_voice_samples * 4
-            typer.echo(VOICE_GUIDANCE.format(seconds=seconds))
+            typer.echo(VOICE_GUIDANCE.format(seconds=settings.identity.enroll_voice_seconds))
+            typer.echo(f"\n{VOICE_PASSAGE}\n")
             count = await runtime.enrollment.enroll_voice(progress=_progress_line)
             typer.echo("")
             done.append(f"voice: {count} samples")
@@ -347,7 +348,7 @@ async def _calibrate(
             if modality is Biometric.VOICE:
                 return await runtime.calibration.score_voice(
                     samples=samples,
-                    timeout_s=identity.enroll_timeout_seconds,
+                    timeout_s=VOICE_SECONDS,
                     microphone=source(path) if path else None,
                     progress=_progress_line,
                 )
@@ -390,7 +391,10 @@ def calibrate(
     ] = 1,
     samples: Annotated[
         int | None,
-        typer.Option(help="Samples per person; live faces: per pose (default: as enrolment)."),
+        typer.Option(
+            help=f"Samples per person; live faces: per pose (default: faces as enrolment, "
+            f"{VOICE_SAMPLES} speech segments)."
+        ),
     ] = None,
     apply: Annotated[bool, typer.Option("--apply", help="Save the suggested threshold.")] = False,
     wav: Annotated[
@@ -414,7 +418,7 @@ def calibrate(
         raise _fail("--wav goes with 'voice' and --images with 'face'.")
     identity = settings.identity
     count = samples or (
-        identity.enroll_voice_samples
+        VOICE_SAMPLES
         if modality is Biometric.VOICE
         else identity.enroll_face_samples * len(identity.enroll_face_poses)
         if files

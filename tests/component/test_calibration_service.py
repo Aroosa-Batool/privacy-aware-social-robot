@@ -33,7 +33,9 @@ async def test_scores_separate_owner_from_strangers_and_apply_stores_a_threshold
         with pytest.raises(EnrollmentError, match="enrol the owner's face first"):
             await runtime.calibration.score_face(samples=3, timeout_s=10)
         runtime.enrollment.register("Owner")
-        runtime.hardware.room.stage_owner(voice_samples=5)
+        runtime.hardware.room.stage_owner(
+            voice_seconds=runtime.settings.identity.enroll_voice_seconds
+        )
         await runtime.enrollment.enroll_voice()
         await runtime.enrollment.enroll_face()
 

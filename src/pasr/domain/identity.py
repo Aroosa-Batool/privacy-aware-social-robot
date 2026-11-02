@@ -60,6 +60,17 @@ def average(embeddings: Sequence[Embedding]) -> Embedding:
     return Embedding.of(np.mean([e.vector for e in embeddings], axis=0), embeddings[0].model)
 
 
+def leave_one_out(embeddings: Sequence[Embedding]) -> list[float]:
+    """How well each of one person's samples fits the rest: its similarity to the average of
+    the others (empty with fewer than two)."""
+    if len(embeddings) < 2:
+        return []
+    return [
+        cosine(e, average([o for j, o in enumerate(embeddings) if j != i]))
+        for i, e in enumerate(embeddings)
+    ]
+
+
 def similarity(
     probe: Embedding, references: Sequence[Embedding], aggregate: Aggregate
 ) -> float | None:

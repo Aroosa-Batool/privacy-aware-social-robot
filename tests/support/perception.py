@@ -66,11 +66,11 @@ def identity_embedding(
 
 
 def _voice(segment: SpeechSegment) -> Utterance | None:
-    """Who was speaking in the middle of ``segment``, according to the current room."""
+    """Who spoke for most of ``segment``, according to the current room."""
     room = room_module.CURRENT
     if room is None:
         return None
-    return room.voice_at(segment.start + (segment.end - segment.start) / 2)
+    return room.voice_during(segment.start, segment.end)
 
 
 class FakeFaceEmbedder:

@@ -43,9 +43,7 @@ async def drive(runtime: Runtime, body):
 
 async def enroll(runtime: Runtime) -> None:
     runtime.enrollment.register("Owner")
-    runtime.hardware.room.stage_owner(
-        voice_samples=runtime.settings.identity.enroll_voice_samples + 2
-    )
+    runtime.hardware.room.stage_owner(voice_seconds=runtime.settings.identity.enroll_voice_seconds)
     await runtime.enrollment.enroll_voice()
     await runtime.enrollment.enroll_face()
 
@@ -57,7 +55,8 @@ async def test_enrolment_shows_each_sample(watched):
     assert feed.steps == ["Enrolling the owner's voice", "Enrolling the owner's face"]
     identity = runtime.settings.identity
     voices = [voice.label for voice in feed.voices if voice.tone is Tone.SAMPLE]
-    assert voices == [f"Sample {n}/{identity.enroll_voice_samples}" for n in range(1, 4)]
+    wanted = f"{identity.enroll_voice_seconds:.0f} s"
+    assert voices and all(v.startswith("Speech ") and v.endswith(f"/{wanted}") for v in voices)
     wanted = identity.enroll_face_samples * len(identity.enroll_face_poses)
     assert [face.label for face in feed.faces] == [
         f"Sample {n}/{wanted}" for n in range(1, wanted + 1)

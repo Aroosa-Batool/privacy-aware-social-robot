@@ -30,8 +30,15 @@ from pasr.domain.enums import (
     WatchAnswer,
 )
 from pasr.domain.framing import ViewProblem, after_move, head_move, offset, view_problems
-from pasr.domain.identity import Identification, IdentityKind, average, cosine, identify
-from pasr.domain.media import Frame
+from pasr.domain.identity import (
+    Identification,
+    IdentityKind,
+    average,
+    cosine,
+    identify,
+    similarity,
+)
+from pasr.domain.media import Frame, SpeechSegment
 from pasr.domain.models import Embedding, Reminder
 from pasr.domain.policy import Decision, decide, requires_detection
 from pasr.domain.timing import LATE_LISTEN_SHARE, listen_deadline, started_late
@@ -97,6 +104,8 @@ class DetectedPerson:
     source: Biometric
     stored: bool
     embeddings: list[Embedding] = field(default_factory=list)
+    seconds: float = 0.0
+    """Speech heard from them in this flow (voices)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -324,10 +333,8 @@ class DueFlow:
             modality=modality,
             owner=owner,
             bystanders=candidates,
-            threshold=identity.face_threshold
-            if modality is Biometric.FACE
-            else identity.voice_threshold,
-            aggregate=identity.aggregate,
+            threshold=identity.threshold_for(modality),
+            aggregate=identity.aggregate_for(modality),
         )
 
     def _identify(
@@ -338,9 +345,10 @@ class DueFlow:
         known: dict[str, list[Embedding]],
         pending: dict[str, DetectedPerson],
         direction: Direction | None = None,
+        segment: SpeechSegment | None = None,
     ) -> Identification:
         """Record a non-owner in ``pending``. The result's ``bystander_id`` is the key they are
-        recorded under."""
+        recorded under. A voice's event gives its ``segment``'s length and loudness."""
         result = self._match(probe, modality, owner, known, pending)
         is_face = modality is Biometric.FACE
         key: str | None = None
@@ -361,8 +369,28 @@ class DueFlow:
                 PluginKind.FACE if is_face else PluginKind.SPEAKER
             ),
             direction=direction.value if direction else None,
+            seconds=round(segment.duration_s, 1) if segment else None,
+            level=round(segment.level_db, 1) if segment else None,
         )
         return replace(result, bystander_id=key)
+
+    def _pooled(self, person: DetectedPerson, owner: list[Embedding]) -> bool:
+        """Whether a voice's speech so far, taken together (its averaged embedding), is the
+        owner's after all: each short segment alone may fall below the threshold, their average
+        is a steadier estimate."""
+        identity = self.settings.identity
+        score = similarity(average(person.embeddings), owner, identity.voice_aggregate)
+        is_owner = score is not None and score >= identity.voice_threshold
+        self.ctx.bus.emit(
+            EventType.VOICE_POOLED,
+            reminder_id=self.reminder.id,
+            bystander_id=person.key,
+            identity=IdentityKind.OWNER.value if is_owner else "someone_else",
+            similarity=None if score is None else round(score, 4),
+            samples=len(person.embeddings),
+            seconds=round(person.seconds, 1),
+        )
+        return is_owner
 
     @staticmethod
     def _describe(result: Identification, known: Mapping[str, object]) -> tuple[str, Tone]:
@@ -381,7 +409,10 @@ class DueFlow:
         """Listen until the deadline, for at most ``share`` of the time left; returns whether
         the owner was heard. A voice of someone the owner allowed before (ask-once policy) is
         noted and the robot listens on; it stops once it hears someone it must ask about, or
-        someone the owner declined for."""
+        someone the owner declined for. Such a voice counts only once
+        ``identity.min_nonowner_seconds`` of its speech is heard and that speech, taken
+        together, still does not match the owner (``_pooled``); a voice heard for less is
+        dropped, as one short segment is too little to tell who spoke."""
         ctx, reminder_settings = self.ctx, self.settings.reminder
         until = listen_deadline(
             ctx.clock.now(),
@@ -394,29 +425,39 @@ class DueFlow:
         owner = ctx.repos.owner.embeddings(Biometric.VOICE)
         known = ctx.repos.bystanders.embeddings(Biometric.VOICE)
         safe = self._allowed_before(known)
+        identity = self.settings.identity
         pending: dict[str, DetectedPerson] = {}
         heard_owner = False
-        non_owner_segments = 0
-        needed = self.settings.identity.min_nonowner_segments
+        someone: str | None = None
         with self._live("listening for other voices"):
             async with aclosing(ctx.speech_segments(until)) as segments:
                 async for segment in segments:
-                    if segment.duration_s < self.settings.identity.min_voice_segment_seconds:
+                    if segment.duration_s < identity.min_voice_segment_seconds:
                         ctx.live.voice(segment.duration_s, "Too short: ignored", Tone.IGNORED)
                         continue
                     probe = await ctx.compute(ctx.perception.speaker.embed, segment)
-                    result = self._identify(probe, Biometric.VOICE, owner, known, pending)
+                    result = self._identify(
+                        probe, Biometric.VOICE, owner, known, pending, segment=segment
+                    )
                     ctx.live.voice(segment.duration_s, *self._describe(result, known))
                     if result.kind is IdentityKind.OWNER:
                         heard_owner = True
-                    elif result.bystander_id not in safe:
-                        non_owner_segments += 1
-                        if non_owner_segments >= needed:
-                            break
-        if non_owner_segments >= needed:
-            self.detected.update(pending)
-        else:  # only people allowed before, if anyone: present all the same, for the decision
-            self.detected.update({key: p for key, p in pending.items() if key in safe})
+                        continue
+                    key = result.bystander_id
+                    assert key is not None  # _identify records every non-owner
+                    person = pending[key]
+                    person.seconds += segment.duration_s
+                    if key in safe or person.seconds < identity.min_nonowner_seconds:
+                        continue
+                    if self._pooled(person, owner):  # the owner after all: listen on
+                        del pending[key]
+                        heard_owner = True
+                        continue
+                    someone = key
+                    break
+        # who ended the listening, and people allowed before, if anyone: present all the same,
+        # for the decision; voices heard too briefly to tell are dropped
+        self.detected.update({k: p for k, p in pending.items() if k in safe or k == someone})
         return heard_owner
 
     async def _scan(self) -> int:

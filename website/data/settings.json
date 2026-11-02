@@ -149,15 +149,15 @@
     "description": "Shorter speech segments are ignored; they give unreliable embeddings."
   },
   {
-    "key": "identity.min_nonowner_segments",
+    "key": "identity.min_nonowner_seconds",
     "group": "identity",
-    "default": 1,
+    "default": 3.0,
     "tier": "advanced",
     "limits": [
-      "≥ 1",
-      "≤ 20"
+      "≥ 0",
+      "≤ 60"
     ],
-    "description": "Speech segments from someone other than the owner needed to decide that a bystander is present."
+    "description": "Speech of one voice other than the owner's needed to decide that someone else is present, pooled over its speech segments; if its segments together match the owner, it was the owner. Speaker models are unreliable on a second or two of speech; less than this is not counted."
   },
   {
     "key": "identity.enroll_face_poses",
@@ -198,26 +198,26 @@
     "description": "Longest wait for one face pose's images after the robot asks for it. A pose that falls short is asked for once more at the end, and left out if it falls short again; enrolment fails only without the front pose."
   },
   {
-    "key": "identity.enroll_voice_samples",
+    "key": "identity.enroll_voice_seconds",
     "group": "identity",
-    "default": 3,
+    "default": 30.0,
     "tier": "advanced",
     "limits": [
-      "≥ 1",
-      "≤ 20"
+      "≥ 10",
+      "≤ 120"
     ],
-    "description": "Speech segments used to enrol the owner."
+    "description": "Seconds of speech used to enrol the owner: two thirds read aloud from a text on the screen, the rest in their own words. Stored as samples of a few seconds each."
   },
   {
     "key": "identity.enroll_timeout_seconds",
     "group": "identity",
-    "default": 30.0,
+    "default": 120.0,
     "tier": "advanced",
     "limits": [
       "> 0",
       "≤ 300"
     ],
-    "description": "Give up voice enrolment if not enough speech arrives within this time."
+    "description": "Give up voice enrolment if not enough speech arrives within this time (two thirds of it for reading, the rest for speaking freely)."
   },
   {
     "key": "identity.aggregate",
@@ -225,7 +225,15 @@
     "default": "max",
     "tier": "advanced",
     "limits": [],
-    "description": "Compare with several enrolled samples by the best single match (max) or by their averaged embedding (mean)."
+    "description": "Compare a face with several enrolled samples of a person by the best single match (max), which suits samples of different poses, or by their averaged embedding (mean)."
+  },
+  {
+    "key": "identity.voice_aggregate",
+    "group": "identity",
+    "default": "mean",
+    "tier": "advanced",
+    "limits": [],
+    "description": "Compare a voice with several enrolled samples of a person by their averaged embedding (mean), which evens out how each sample differs, or by the best single match (max)."
   },
   {
     "key": "vad.speech_threshold",

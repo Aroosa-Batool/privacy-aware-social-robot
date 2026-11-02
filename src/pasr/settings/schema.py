@@ -12,7 +12,14 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from pasr.domain.enums import DetectionModality, Direction, DisclosurePolicy, FacePose, Tilt
+from pasr.domain.enums import (
+    Biometric,
+    DetectionModality,
+    Direction,
+    DisclosurePolicy,
+    FacePose,
+    Tilt,
+)
 from pasr.domain.framing import FullView
 from pasr.domain.identity import Aggregate
 from pasr.domain.timing import LATE_LISTEN_SHARE
@@ -146,13 +153,15 @@ class IdentitySettings(_Group):
         le=30,
         description="Shorter speech segments are ignored; they give unreliable embeddings.",
     )
-    min_nonowner_segments: int = setting(
-        1,
+    min_nonowner_seconds: float = setting(
+        3.0,
         tier="advanced",
-        ge=1,
-        le=20,
-        description="Speech segments from someone other than the owner needed to decide "
-        "that a bystander is present.",
+        ge=0,
+        le=60,
+        description="Speech of one voice other than the owner's needed to decide that someone "
+        "else is present, pooled over its speech segments; if its segments together match the "
+        "owner, it was the owner. Speaker models are unreliable on a second or two of speech; "
+        "less than this is not counted.",
     )
     enroll_face_poses: list[FacePose] = setting(
         tier="advanced",
@@ -179,22 +188,43 @@ class IdentitySettings(_Group):
         "pose that falls short is asked for once more at the end, and left out if it falls "
         "short again; enrolment fails only without the front pose.",
     )
-    enroll_voice_samples: int = setting(
-        3, tier="advanced", ge=1, le=20, description="Speech segments used to enrol the owner."
+    enroll_voice_seconds: float = setting(
+        30.0,
+        tier="advanced",
+        ge=10,
+        le=120,
+        description="Seconds of speech used to enrol the owner: two thirds read aloud from a "
+        "text on the screen, the rest in their own words. Stored as samples of a few seconds "
+        "each.",
     )
     enroll_timeout_seconds: float = setting(
-        30.0,
+        120.0,
         tier="advanced",
         gt=0,
         le=300,
-        description="Give up voice enrolment if not enough speech arrives within this time.",
+        description="Give up voice enrolment if not enough speech arrives within this time "
+        "(two thirds of it for reading, the rest for speaking freely).",
     )
     aggregate: Aggregate = setting(
         Aggregate.MAX,
         tier="advanced",
-        description="Compare with several enrolled samples by the best single match (max) "
-        "or by their averaged embedding (mean).",
+        description="Compare a face with several enrolled samples of a person by the best "
+        "single match (max), which suits samples of different poses, or by their averaged "
+        "embedding (mean).",
     )
+    voice_aggregate: Aggregate = setting(
+        Aggregate.MEAN,
+        tier="advanced",
+        description="Compare a voice with several enrolled samples of a person by their "
+        "averaged embedding (mean), which evens out how each sample differs, or by the best "
+        "single match (max).",
+    )
+
+    def threshold_for(self, modality: Biometric) -> float:
+        return self.face_threshold if modality is Biometric.FACE else self.voice_threshold
+
+    def aggregate_for(self, modality: Biometric) -> Aggregate:
+        return self.aggregate if modality is Biometric.FACE else self.voice_aggregate
 
     @field_validator("enroll_face_poses")
     @classmethod

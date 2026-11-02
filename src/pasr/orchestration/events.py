@@ -26,6 +26,7 @@ class EventType(StrEnum):
     FLOW_ERROR = "flow.error"
     OWNER_PRESENCE = "owner.presence"
     VOICE_IDENTIFIED = "perception.voice"
+    VOICE_POOLED = "perception.voice_pooled"
     FACE_IDENTIFIED = "perception.face"
     FACE_STUDIED = "perception.face_studied"
     ROOM_SCANNED = "perception.scan"
@@ -57,6 +58,7 @@ ALLOWED_PAYLOAD_KEYS = frozenset(
         "frames",
         "identity",
         "late_seconds",
+        "level",
         "modality",
         "mode",
         "no_face",

@@ -219,7 +219,7 @@ async def _run(scenario: Scenario, settings: Settings, clock: VirtualClock) -> S
     await runtime.start()
     try:
         runtime.enrollment.register("Owner")
-        room.stage_owner(voice_samples=settings.identity.enroll_voice_samples + 2)
+        room.stage_owner(voice_seconds=settings.identity.enroll_voice_seconds)
         if Biometric.VOICE in scenario.enroll:
             await runtime.enrollment.enroll_voice()
         if Biometric.FACE in scenario.enroll:

@@ -1,5 +1,7 @@
 """Enrolment progress, guidance and failure messages, in simulation on the virtual clock."""
 
+from datetime import timedelta
+
 import pytest
 
 from pasr.domain.enums import Biometric, Direction, FacePose
@@ -8,8 +10,12 @@ from pasr.orchestration.enrollment import (
     POSE_REQUESTS,
     SAMPLE_INTERVAL_S,
     TRY_AGAIN,
+    VOICE_CHUNK_SECONDS,
     VOICE_FAILED,
+    VOICE_FREE_PROMPT,
     VOICE_LEARNED,
+    VOICE_READ_PROMPT,
+    VOICE_UNCLEAR,
     EnrollmentError,
     EnrollProgress,
 )
@@ -146,21 +152,70 @@ async def test_without_the_front_pose_nothing_is_stored_and_the_robot_says_why(
     assert runtime.repos.owner.embeddings(Biometric.FACE) == []
 
 
-async def test_voice_progress_timeout_message_and_spoken_outcome(runtime: Runtime):
+def talk(runtime: Runtime, *parts: tuple[str, float]) -> None:
+    """``(speaker, seconds)`` utterances one after another, a second apart, starting shortly."""
+    room = runtime.hardware.room
+    at = runtime.clock.now() + timedelta(seconds=0.5)
+    for speaker, seconds in parts:
+        room.speak(speaker, seconds, start=at)
+        at += timedelta(seconds=seconds + 1)
+
+
+async def test_voice_is_read_aloud_then_spoken_freely_and_stored_in_samples_of_seconds(
+    runtime: Runtime,
+):
     seen: list[EnrollProgress] = []
+    wanted = runtime.settings.identity.enroll_voice_seconds
 
     async def body():
         runtime.enrollment.register("Owner")
-        with pytest.raises(EnrollmentError, match="heard only 0 of 3 usable .*vad=silero"):
+        with pytest.raises(EnrollmentError, match="heard 0 of 30 s of usable .*vad=silero"):
             await runtime.enrollment.enroll_voice()  # nobody speaks
-        assert spoken(runtime)[-1] == VOICE_FAILED
-        runtime.hardware.room.stage_owner(voice_samples=5)
-        assert await runtime.enrollment.enroll_voice(progress=seen.append) == 3
-        assert spoken(runtime)[-1] == VOICE_LEARNED
+        assert spoken(runtime) == [VOICE_READ_PROMPT, VOICE_FREE_PROMPT, VOICE_FAILED]
+        runtime.hardware.room.stage_owner(voice_seconds=wanted)
+        return await runtime.enrollment.enroll_voice(progress=seen.append)
+
+    count = await drive(runtime, body)
+    assert spoken(runtime)[3:] == [VOICE_READ_PROMPT, VOICE_FREE_PROMPT, VOICE_LEARNED]
+    assert count >= wanted // VOICE_CHUNK_SECONDS  # a few seconds of speech each
+    assert len(runtime.repos.owner.embeddings(Biometric.VOICE)) == count
+    collected = [p.collected for p in seen]
+    assert collected == sorted(collected) and collected[-1] >= wanted
+    assert {(p.modality, p.wanted, p.unit) for p in seen} == {(Biometric.VOICE, 30, "s of speech")}
+    (failed,) = events(runtime, EventType.OWNER_ENROLMENT_FAILED)
+    assert failed == {
+        "modality": "voice",
+        "reason": "too little speech",
+        "samples": 0,
+        "seconds": 0.0,
+    }
+    (enrolled,) = events(runtime, EventType.OWNER_ENROLLED)
+    assert enrolled["samples"] == count and enrolled["seconds"] >= wanted
+    assert enrolled["unusable"] == 0 and enrolled["similarity"] > 0.8
+
+
+async def test_a_voice_sample_unlike_the_others_is_left_out(runtime: Runtime):
+    async def body():
+        runtime.enrollment.register("Owner")
+        # someone else talks in the middle of the reading
+        talk(runtime, *[(OWNER_TAG, 2.0)] * 8, ("stranger", 5.0), *[(OWNER_TAG, 2.0)] * 16)
+        return await runtime.enrollment.enroll_voice()
+
+    count = await drive(runtime, body)
+    (enrolled,) = events(runtime, EventType.OWNER_ENROLLED)
+    assert enrolled["unusable"] == 1 and enrolled["samples"] == count
+    assert spoken(runtime)[-1] == VOICE_LEARNED
+
+
+async def test_voice_samples_unlike_each_other_are_not_stored(runtime: Runtime):
+    async def body():
+        runtime.enrollment.register("Owner")
+        talk(runtime, *[(f"person {n}", 4.5) for n in range(12)])  # a different voice each time
+        with pytest.raises(EnrollmentError, match="only 0 of [0-9]+ voice samples sound alike"):
+            await runtime.enrollment.enroll_voice()
 
     await drive(runtime, body)
-    collected = [p.collected for p in seen]
-    assert collected == sorted(collected) and collected[-1] == 3  # a short segment may count 0
-    assert seen[-1].modality is Biometric.VOICE and seen[-1].frames >= 3
+    assert spoken(runtime)[-1] == VOICE_UNCLEAR
     (failed,) = events(runtime, EventType.OWNER_ENROLMENT_FAILED)
-    assert failed == {"modality": "voice", "reason": "too little speech", "samples": 0}
+    assert failed["reason"] == "unlike samples" and failed["seconds"] >= 30
+    assert runtime.repos.owner.embeddings(Biometric.VOICE) == []

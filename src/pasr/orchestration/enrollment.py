@@ -6,6 +6,11 @@ so the stored samples cover the views the room scan will see. While a pose bring
 says what is wrong, it asks again at the end for each pose that fell short, and it always says
 how enrolment went.
 
+The voice is guided too (ADR 0013): the owner reads a text on the screen aloud, then talks
+freely, until the robot has ``identity.enroll_voice_seconds`` of speech. It is stored as samples
+of a few seconds each, and a sample unlike the others (a noise, someone else talking) is left
+out.
+
 The capture loops are module-level so threshold calibration can reuse them on other people's
 samples without storing anything.
 """
@@ -23,7 +28,8 @@ from datetime import datetime, timedelta
 
 from pasr.domain.enums import Biometric, Direction, FacePose
 from pasr.domain.framing import FullView, PoseCheck, PoseMiss, ViewProblem, turned, view_problems
-from pasr.domain.media import Frame
+from pasr.domain.identity import leave_one_out
+from pasr.domain.media import Frame, SpeechSegment
 from pasr.domain.models import Embedding, Owner
 from pasr.hardware.protocols import Camera, Microphone
 from pasr.live.feed import FaceMark, Tone
@@ -33,13 +39,44 @@ from pasr.perception.protocols import FaceObservation
 from pasr.perception.registry import PluginKind
 from pasr.settings.schema import IdentitySettings
 
-VOICE_PROMPT = "Please talk to me for a few seconds so I can learn your voice."
 FACE_GUIDANCE = (
     "Sit alone in front of the robot, about an arm's length away, and do what it says: look "
     "straight at its camera, then turn and tilt your head each way. Hold each pose until it "
     "asks for the next."
 )
-VOICE_GUIDANCE = "Speak naturally for about {seconds:.0f} seconds, for example about your day."
+VOICE_GUIDANCE = (
+    "Be alone in a quiet room, where you usually sit near the robot, and speak at your normal "
+    "loudness. When the robot asks, read the text below aloud until it stops you, then tell it "
+    "about your day in your own words. It needs about {seconds:.0f} seconds of your speech."
+)
+VOICE_PASSAGE = (
+    "A dispute arose between the North Wind and the Sun, each claiming that he was stronger "
+    "than the other. At last they agreed to try their powers upon a traveller, to see which "
+    "could soonest strip him of his cloak. The North Wind had the first try; and, gathering up "
+    "all his force for the attack, he came whirling furiously down upon the man, and caught up "
+    "his cloak as though he would wrest it from him by one single effort: but the harder he "
+    "blew, the more closely the man wrapped it round himself. Then came the turn of the Sun. "
+    "At first he beamed gently upon the traveller, who soon unclasped his cloak and walked on "
+    "with it hanging loosely about his shoulders: then he shone forth in his full strength, "
+    "and the man, before he had gone many steps, was glad to throw his cloak right off and "
+    "complete his journey more lightly clad. Persuasion is better than force."
+)
+"""Read aloud while the robot learns the owner's voice: Aesop's fable *The North Wind and the
+Sun* (V. S. Vernon Jones's translation, 1912, public domain), the text phoneticians use to show
+the sounds of a language. It is longer than the reading takes, so the reader never runs out."""
+VOICE_READ_PROMPT = (
+    "Please read the text on the screen aloud, at your normal loudness, until I stop you."
+)
+VOICE_FREE_PROMPT = "Thank you. Now please tell me about your day, in your own words."
+READ_SHARE = 2 / 3
+"""Of the enrolment speech, and of its time, the share read aloud. The rest is in the owner's
+own words, the kind of speech the robot hears while it listens: a voice enrolled in one
+speaking style is harder to recognise in another."""
+VOICE_CHUNK_SECONDS = 4.0
+"""Speech per stored voice sample. Consecutive speech segments are joined to this length:
+speaker models are trained on stretches of a few seconds and are unreliable on one."""
+MIN_VOICE_SAMPLES = 3
+"""Fewest voice samples, alike enough, that enrolment stores."""
 
 POSE_REQUESTS = {
     FacePose.FRONT: "Please look straight at my camera.",
@@ -94,6 +131,10 @@ VOICE_FAILED = (
     "Sorry, I did not hear enough of your voice. Please speak a little longer, in a quiet room, "
     "and try once more."
 )
+VOICE_UNCLEAR = (
+    "Sorry, your voice did not come through clearly. Please try once more, alone and in a "
+    "quiet room."
+)
 POSES_DONE = "Thank you, you can relax now."
 SETTLE_SECONDS = 1.0
 """Time to take a pose after the robot asks for it, before frames are used."""
@@ -110,6 +151,12 @@ def face_enrolment_seconds(identity: IdentitySettings) -> float:
     for callers waiting on it."""
     poses = len(identity.enroll_face_poses)
     return 2 * poses * (identity.enroll_face_pose_seconds + SPEECH_ALLOWANCE_S)
+
+
+def voice_enrolment_seconds(identity: IdentitySettings) -> float:
+    """Longest a guided voice capture takes, with what the robot says, for callers waiting on
+    it."""
+    return identity.enroll_timeout_seconds + 3 * SPEECH_ALLOWANCE_S
 
 
 def pose_hint(pose: FacePose, miss: PoseMiss) -> str:
@@ -146,6 +193,8 @@ class EnrollProgress:
     """Frames with one face that was not in full view or not looking the asked way."""
     pose: FacePose | None = None
     """The pose being captured (guided face capture)."""
+    unit: str = "samples"
+    """What ``collected`` and ``wanted`` count (voice enrolment: seconds of speech)."""
 
 
 @dataclass(slots=True)
@@ -378,6 +427,76 @@ async def capture_voice_embeddings(
     return samples, status()
 
 
+@dataclass(slots=True)
+class VoiceCapture:
+    """What a guided voice capture got: samples of about ``VOICE_CHUNK_SECONDS`` of speech."""
+
+    samples: list[Embedding] = field(default_factory=list)
+    seconds: float = 0.0
+    """Speech in ``samples``."""
+    heard: int = 0
+    """Speech segments heard, short ones included."""
+
+
+async def capture_voice_samples(
+    ctx: RobotContext,
+    *,
+    seconds: float,
+    timeout_s: float,
+    min_seconds: float,
+    progress: Progress | None = None,
+) -> VoiceCapture:
+    """The owner's voice: the robot asks them to read ``VOICE_PASSAGE`` aloud for
+    ``READ_SHARE`` of ``seconds`` of speech, then to talk freely for the rest, with the same
+    shares of ``timeout_s`` (the microphone is closed while the robot speaks). Speech segments of
+    at least ``min_seconds`` are joined into samples of about ``VOICE_CHUNK_SECONDS``; the last,
+    shorter one is kept if it holds half of that."""
+    capture = VoiceCapture()
+    started = ctx.clock.now()
+    goal = 0.0
+
+    def status(buffered: float) -> EnrollProgress:
+        return EnrollProgress(
+            Biometric.VOICE,
+            int(capture.seconds + buffered),
+            round(seconds),
+            capture.heard,
+            elapsed_s=(ctx.clock.now() - started).total_seconds(),
+            unit="s of speech",
+        )
+
+    async def add(buffer: list[SpeechSegment]) -> None:
+        joined = SpeechSegment.joined(buffer)
+        capture.samples.append(await ctx.compute(ctx.perception.speaker.embed, joined))
+        capture.seconds += sum(s.duration_s for s in buffer)
+
+    for prompt, share in ((VOICE_READ_PROMPT, READ_SHARE), (VOICE_FREE_PROMPT, 1 - READ_SHARE)):
+        goal += share * seconds
+        await ctx.hardware.speaker.say(prompt)
+        deadline = ctx.clock.now() + timedelta(seconds=share * timeout_s)
+        buffer: list[SpeechSegment] = []
+        async with aclosing(ctx.speech_segments(deadline)) as segments:
+            async for segment in segments:
+                capture.heard += 1
+                if segment.duration_s < min_seconds:
+                    ctx.live.voice(segment.duration_s, "Too short: not used", Tone.IGNORED)
+                else:
+                    buffer.append(segment)
+                    if sum(s.duration_s for s in buffer) >= VOICE_CHUNK_SECONDS:
+                        await add(buffer)
+                        buffer = []
+                    used = capture.seconds + sum(s.duration_s for s in buffer)
+                    label = f"Speech {used:.0f}/{seconds:.0f} s"
+                    ctx.live.voice(segment.duration_s, label, Tone.SAMPLE)
+                if progress is not None:
+                    progress(status(sum(s.duration_s for s in buffer)))
+                if capture.seconds >= goal:
+                    break
+        if sum(s.duration_s for s in buffer) >= VOICE_CHUNK_SECONDS / 2:
+            await add(buffer)
+    return capture
+
+
 class EnrollmentService:
     def __init__(self, ctx: RobotContext) -> None:
         self.ctx = ctx
@@ -391,10 +510,6 @@ class EnrollmentService:
     def _require_owner(self) -> None:
         if self.ctx.repos.owner.get() is None:
             raise EnrollmentError("register the owner before enrolling face or voice")
-
-    def _deadline(self) -> datetime:
-        timeout = self.ctx.settings.identity.enroll_timeout_seconds
-        return self.ctx.clock.now() + timedelta(seconds=timeout)
 
     async def enroll_face(self, progress: Progress | None = None) -> int:
         """Capture face embeddings of each pose the robot asks for, from frames with exactly
@@ -453,47 +568,85 @@ class EnrollmentService:
         )
 
     async def enroll_voice(self, progress: Progress | None = None) -> int:
-        """Capture voice embeddings from the owner's speech segments. The robot says how it
-        went."""
+        """Capture the owner's voice, read aloud and then in their own words, as samples of a
+        few seconds each. They are stored once ``identity.enroll_voice_seconds`` of speech came
+        in, without samples unlike the others (``leave_one_out`` below the voice threshold), if
+        at least ``MIN_VOICE_SAMPLES`` remain. The robot says how it went."""
         self._require_owner()
         identity = self.ctx.settings.identity
-        wanted = identity.enroll_voice_samples
-        await self.ctx.hardware.speaker.say(VOICE_PROMPT)
+        wanted = identity.enroll_voice_seconds
         with self.ctx.live.activity(
             "Enrolling the owner's voice",
-            f"Speech segments of at least {identity.min_voice_segment_seconds:g} s are used",
+            f"Speech segments of at least {identity.min_voice_segment_seconds:g} s are joined "
+            f"into samples of about {VOICE_CHUNK_SECONDS:g} s",
         ):
-            samples, status = await capture_voice_embeddings(
+            capture = await capture_voice_samples(
                 self.ctx,
-                wanted=wanted,
-                deadline=self._deadline(),
+                seconds=wanted,
+                timeout_s=identity.enroll_timeout_seconds,
                 min_seconds=identity.min_voice_segment_seconds,
                 progress=progress,
             )
-        if len(samples) < wanted:
+        fits = leave_one_out(capture.samples)  # none for a lone sample: it is not kept
+        kept = [
+            s
+            for s, fit in zip(capture.samples, fits, strict=False)
+            if fit >= identity.voice_threshold
+        ]
+        heard = round(capture.seconds, 1)
+        if capture.seconds < wanted or len(kept) < MIN_VOICE_SAMPLES:
+            enough = capture.seconds >= wanted
             self.ctx.bus.emit(
                 EventType.OWNER_ENROLMENT_FAILED,
                 modality=Biometric.VOICE.value,
-                reason="too little speech",
-                samples=len(samples),
+                reason="unlike samples" if enough else "too little speech",
+                samples=len(kept),
+                seconds=heard,
             )
-            await self.ctx.hardware.speaker.say(VOICE_FAILED)
+            await self.ctx.hardware.speaker.say(VOICE_UNCLEAR if enough else VOICE_FAILED)
             raise EnrollmentError(
-                f"heard only {len(samples)} of {wanted} usable speech segments "
-                f"({status.frames} heard; shorter than {identity.min_voice_segment_seconds:g} s "
-                "are ignored); speak for longer in a quiet room, or try perception.vad=silero"
+                f"only {len(kept)} of {len(capture.samples)} voice samples sound alike (each "
+                f"against the others, at identity.voice_threshold {identity.voice_threshold:g}): "
+                "someone else may have spoken, or a noise was loud; try again alone in a quiet "
+                "room"
+                if enough
+                else f"heard {capture.seconds:.0f} of {wanted:.0f} s of usable speech in "
+                f"{capture.heard} speech segments (shorter than "
+                f"{identity.min_voice_segment_seconds:g} s are ignored); read the text aloud at "
+                "your normal loudness in a quiet room, or try perception.vad=silero"
             )
-        count = self._store(Biometric.VOICE, samples, PluginKind.SPEAKER)
+        count = self._store(
+            Biometric.VOICE,
+            kept,
+            PluginKind.SPEAKER,
+            seconds=heard,
+            unusable=len(capture.samples) - len(kept),
+            similarity=_median([f for f in fits if f >= identity.voice_threshold]),
+        )
         await self.ctx.hardware.speaker.say(VOICE_LEARNED)
         return count
 
-    def _store(self, modality: Biometric, samples: list[Embedding], kind: PluginKind) -> int:
+    def _store(
+        self,
+        modality: Biometric,
+        samples: list[Embedding],
+        kind: PluginKind,
+        *,
+        seconds: float | None = None,
+        unusable: int | None = None,
+        similarity: float | None = None,
+    ) -> int:
+        """Replace the owner's samples; the voice's event gives the seconds of speech, the
+        samples left out and how alike the stored ones are."""
         count = self.ctx.repos.owner.replace_embeddings(modality, samples, self.ctx.clock.now())
         self.ctx.bus.emit(
             EventType.OWNER_ENROLLED,
             modality=modality.value,
             samples=count,
             plugin=self.ctx.perception.plugin_name(kind),
+            seconds=seconds,
+            unusable=unusable,
+            similarity=similarity,
         )
         return count
 

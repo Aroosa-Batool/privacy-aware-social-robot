@@ -20,11 +20,11 @@ uv run pasr calibrate face  --others 0           # owner only: at most the model
 uv run pasr calibrate voice --live-view          # watch each sample's similarity
 ```
 
-The robot must be enrolled first. It captures as many samples per person as enrolment uses
-(`--samples` to change that; for a live face, per pose: the robot guides each person through
-the same poses as enrolment), scores each one **exactly** as the reminder flow would
-(`identity.identify` with the configured aggregate), prints the distributions and suggests a
-threshold. `--apply` saves it without asking; a running robot applies it on restart.
+The robot must be enrolled first. It captures as many face samples per person as enrolment uses,
+or 6 speech segments (`--samples` to change that; for a live face, per pose: the robot guides
+each person through the same poses as enrolment), scores each one **exactly** as the reminder
+flow would (`identity.identify` with the configured aggregate: `identity.aggregate` for faces,
+`identity.voice_aggregate` for voices), prints the distributions and suggests a threshold. `--apply` saves it without asking; a running robot applies it on restart.
 
 ## From recordings
 

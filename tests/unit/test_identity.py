@@ -7,8 +7,10 @@ from pasr.domain.identity import (
     IdentityKind,
     ModelMismatchError,
     NotEnrolledError,
+    average,
     cosine,
     identify,
+    leave_one_out,
     similarity,
 )
 from pasr.domain.models import Embedding
@@ -86,3 +88,21 @@ def test_missing_enrolment_fails():
             threshold=0.5,
             aggregate=Aggregate.MAX,
         )
+
+
+def test_short_segments_below_the_threshold_can_be_the_owner_together():
+    rng = np.random.default_rng(7)
+    voice = rng.standard_normal(192)
+    owner = [Embedding.of(voice, "m")]
+    # each short segment: the owner's voice under a lot of noise
+    segments = [Embedding.of(voice + 2.5 * rng.standard_normal(192), "m") for _ in range(4)]
+    alone = [similarity(s, owner, Aggregate.MEAN) or 0.0 for s in segments]
+    together = similarity(average(segments), owner, Aggregate.MEAN) or 0.0
+    assert max(alone) < 0.5 < together
+
+
+def test_leave_one_out_finds_the_sample_unlike_the_others():
+    samples = [emb(1, 0.1, 0), emb(1, 0, 0.1), emb(0.9, 0.1, 0.1), emb(0, 0, 1)]
+    fits = leave_one_out(samples)
+    assert min(fits[:3]) > 0.8 and fits[3] < 0.3
+    assert leave_one_out(samples[:1]) == []

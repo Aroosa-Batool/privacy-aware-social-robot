@@ -38,9 +38,14 @@ also be left out of `identity.enroll_face_poses`. See
 
 @step Voice
 
-Click **Capture voice** and speak naturally for about 12 seconds, about your day for example,
-until enough speech segments are in (`identity.enroll_voice_samples`, 3), recorded with
-`speechbrain-spkrec-ecapa-voxceleb` by default. **Delete voice data** removes them.
+Be alone in a quiet room, where you usually sit near the robot. Click **Capture voice**: the
+robot asks you to read the text shown in the Voice step aloud, at your normal loudness, until it
+stops you, then to tell it about your day in your own words. It needs 30 seconds of your speech
+(`identity.enroll_voice_seconds`), about a minute in all, and stores it as samples of about
+4 seconds, made with `speechbrain-spkrec-ecapa-voxceleb` by default. A sample unlike the others
+(a loud noise, someone else talking) is left out; if too few are left, nothing is stored and the
+robot asks you to try again. **Delete voice data** removes them. See
+[ADR 0013](/decisions/0013-voice-enrolment-and-pooled-voice-evidence).
 
 @step Your privacy choices
 

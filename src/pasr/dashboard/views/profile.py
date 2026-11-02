@@ -22,7 +22,9 @@ from pasr.domain.enums import Biometric, DetectionModality, DisclosurePolicy
 from pasr.orchestration.enrollment import (
     FACE_GUIDANCE,
     VOICE_GUIDANCE,
+    VOICE_PASSAGE,
     face_enrolment_seconds,
+    voice_enrolment_seconds,
 )
 from pasr.orchestration.runtime import Runtime
 from pasr.settings.loader import (
@@ -129,13 +131,16 @@ def enrolment_step(number: int, modality: Biometric, title: str, what: str) -> N
             return
         if not handle.running:
             return
-        seconds = current.identity.enroll_voice_samples * 4
-        guidance = FACE_GUIDANCE if modality is Biometric.FACE else VOICE_GUIDANCE
-        st.caption(guidance.format(seconds=seconds))
+        if modality is Biometric.FACE:
+            st.caption(FACE_GUIDANCE)
+        else:
+            st.caption(VOICE_GUIDANCE.format(seconds=current.identity.enroll_voice_seconds))
+            with st.container(border=True):  # in view while the robot listens
+                st.markdown(VOICE_PASSAGE)
         timeout = (
             face_enrolment_seconds(current.identity)
             if modality is Biometric.FACE
-            else current.identity.enroll_timeout_seconds
+            else voice_enrolment_seconds(current.identity)
         ) + 30
         with st.container(horizontal=True, gap="small"):
             capture = st.button(

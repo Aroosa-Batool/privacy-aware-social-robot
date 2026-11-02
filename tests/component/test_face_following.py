@@ -41,7 +41,7 @@ async def remind(runtime: Runtime, stage) -> FlowOutcome:
     async def body() -> FlowOutcome:
         runtime.enrollment.register("Owner")
         room: Room = runtime.hardware.room
-        room.stage_owner(voice_samples=runtime.settings.identity.enroll_voice_samples + 2)
+        room.stage_owner(voice_seconds=runtime.settings.identity.enroll_voice_seconds)
         await runtime.enrollment.enroll_voice()
         await runtime.enrollment.enroll_face()
         room.clear_upcoming()  # nobody speaks: the robot scans the room

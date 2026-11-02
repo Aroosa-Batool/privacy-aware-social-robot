@@ -9,17 +9,14 @@ from pasr.dashboard.components.notify import notify, rerun
 from pasr.dashboard.components.robot import needs_running
 from pasr.dashboard.components.score_chart import score_chart
 from pasr.dashboard.state import attempt, get_handle, offline, on_robot, settings
-from pasr.domain.calibration import MIN_GENUINE, Calibration, Verdict, calibrate
+from pasr.domain.calibration import Calibration, Verdict, calibrate
 from pasr.domain.enums import Biometric
-from pasr.orchestration.calibration import THRESHOLD_FIELDS
+from pasr.orchestration.calibration import THRESHOLD_FIELDS, VOICE_SAMPLES, VOICE_SECONDS
 from pasr.orchestration.enrollment import face_enrolment_seconds
 from pasr.orchestration.runtime import Runtime
 from pasr.perception.registry import PluginKind, recommended_threshold
 from pasr.settings.loader import load_settings
 
-# Voice calibration takes more segments than enrolment: fewer than MIN_GENUINE give no verdict.
-VOICE_SAMPLES = max(6, MIN_GENUINE)
-VOICE_SECONDS = 60.0
 KINDS = {Biometric.FACE: PluginKind.FACE, Biometric.VOICE: PluginKind.SPEAKER}
 BadgeColor = Literal["green", "orange", "red", "gray"]
 VERDICTS: dict[Verdict, tuple[str, BadgeColor, str]] = {

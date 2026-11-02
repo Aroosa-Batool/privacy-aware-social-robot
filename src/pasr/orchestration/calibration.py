@@ -7,7 +7,7 @@ from __future__ import annotations
 from contextlib import AbstractContextManager
 from datetime import timedelta
 
-from pasr.domain.calibration import Calibration, scores_against
+from pasr.domain.calibration import MIN_GENUINE, Calibration, scores_against
 from pasr.domain.enums import Biometric
 from pasr.domain.identity import ModelMismatchError, similarity
 from pasr.domain.models import Embedding
@@ -29,6 +29,11 @@ from pasr.settings.loader import update_overrides
 
 THRESHOLD_FIELDS = {Biometric.FACE: "face_threshold", Biometric.VOICE: "voice_threshold"}
 PLUGIN_KINDS = {Biometric.FACE: PluginKind.FACE, Biometric.VOICE: PluginKind.SPEAKER}
+VOICE_SAMPLES = max(6, MIN_GENUINE)
+"""Speech segments a voice calibration scores per person: fewer than ``MIN_GENUINE`` give no
+verdict."""
+VOICE_SECONDS = 60.0
+"""Longest wait for one person's speech segments."""
 
 
 class CalibrationService:
@@ -69,7 +74,7 @@ class CalibrationService:
                 f"several in {status.many_faces}, not in full view or not looking the asked "
                 f"way in {status.unusable})"
             )
-        return self._score(probes, enrolled)
+        return self._score(Biometric.FACE, probes, enrolled)
 
     async def score_voice(
         self,
@@ -93,7 +98,7 @@ class CalibrationService:
             )
         if not probes:
             raise EnrollmentError(f"no usable speech segment ({status.frames} heard)")
-        return self._score(probes, enrolled)
+        return self._score(Biometric.VOICE, probes, enrolled)
 
     def apply(
         self, modality: Biometric, threshold: float, calibration: Calibration | None = None
@@ -110,16 +115,12 @@ class CalibrationService:
             count=calibration.genuine.count if calibration else 0,
         )
 
-    def _threshold(self, modality: Biometric) -> float:
-        threshold: float = getattr(self.ctx.settings.identity, THRESHOLD_FIELDS[modality])
-        return threshold
-
     def _live(self, modality: Biometric) -> AbstractContextManager[None]:
         return self.ctx.live.activity(f"Calibrating the {modality.value} threshold")
 
     def _describe(self, modality: Biometric, enrolled: list[Embedding], wanted: int) -> Describe:
-        threshold = self._threshold(modality)
-        aggregate = self.ctx.settings.identity.aggregate
+        threshold = self.ctx.settings.identity.threshold_for(modality)
+        aggregate = self.ctx.settings.identity.aggregate_for(modality)
 
         def describe(probe: Embedding, n: int) -> tuple[str, Tone]:
             score = similarity(probe, enrolled, aggregate)
@@ -139,8 +140,11 @@ class CalibrationService:
     def _deadline(self, timeout_s: float):  # type: ignore[no-untyped-def]
         return self.ctx.clock.now() + timedelta(seconds=timeout_s)
 
-    def _score(self, probes: list[Embedding], enrolled: list[Embedding]) -> list[float]:
+    def _score(
+        self, modality: Biometric, probes: list[Embedding], enrolled: list[Embedding]
+    ) -> list[float]:
+        aggregate = self.ctx.settings.identity.aggregate_for(modality)
         try:
-            return scores_against(probes, enrolled, self.ctx.settings.identity.aggregate)
+            return scores_against(probes, enrolled, aggregate)
         except ModelMismatchError as exc:
             raise EnrollmentError(f"re-enrol the owner with the current plugin: {exc}") from exc
