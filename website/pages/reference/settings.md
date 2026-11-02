@@ -63,6 +63,12 @@ Each stage takes a `plugin` name and a `params` object with that plugin's own pa
 
 ::settings groups=storage,logging,live_view
 
+## Study
+
+What the robot is being tested with, for comparing runs; switched on Home and with a quick test.
+
+::settings groups=study
+
 :::note Regenerating this page
 The tables come from `website/data/settings.json`. After changing a setting in
 `settings/schema.py`, run `uv run python website/tools/export_settings.py` and

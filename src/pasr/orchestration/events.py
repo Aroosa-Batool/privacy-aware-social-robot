@@ -79,6 +79,7 @@ ALLOWED_PAYLOAD_KEYS = frozenset(
         "several",
         "similarity",
         "speaker_model",
+        "tested_with",
         "threshold",
         "tilt",
         "turned",

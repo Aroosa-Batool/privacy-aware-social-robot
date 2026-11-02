@@ -12,7 +12,7 @@ table, `event_log`, with the columns `ts`, `session_id`, `type`, `reminder_id`, 
 | Type | When | Typical data |
 |---|---|---|
 | `runtime.started` · `runtime.stopped` | The robot starts or stops (a new session). | |
-| `flow.started` | A reminder's flow starts, before its first step (ADR 0014). | `speaker_model`, `vad_model`, `face_model`, `sensitivity_model` (the model that judged the reminder, or `user`), `voice_threshold`, `face_threshold`, `mode` (detection), `policy`, `sensitive`, `origin` |
+| `flow.started` | A reminder's flow starts, before its first step (ADR 0014). | `speaker_model`, `vad_model`, `face_model`, `sensitivity_model` (the model that judged the reminder, or `user`), `voice_threshold`, `face_threshold`, `mode` (detection), `policy`, `sensitive`, `origin`, `tested_with` (`real_person`, or `pictures_and_recordings` shown to the camera and played through speakers) |
 | `flow.state` | The reminder flow moves to a new state. | `reason` |
 | `flow.error` | A flow failed and went to the watch. | `error_type` |
 | `owner.presence` | The watch was pinged. | `present` |
@@ -41,8 +41,8 @@ and raises otherwise: `answer`, `channel`, `count`, `decision`, `direction`, `er
 `face_model`, `face_threshold`, `faces`, `frames`, `identity`, `late_seconds`, `level`,
 `modality`, `mode`, `no_face`, `origin`, `plugin`, `policy`, `pose`, `present`, `ready`, `reason`,
 `samples`, `seconds`, `sensitive`, `sensitivity_model`, `several`, `similarity`, `speaker_model`,
-`threshold`, `tilt`, `turned`, `unusable`, `vad_model`, `voice_threshold`. Tests check that
-reminder titles never appear in the log.
+`tested_with`, `threshold`, `tilt`, `turned`, `unusable`, `vad_model`, `voice_threshold`. Tests
+check that reminder titles never appear in the log.
 
 ## Pipeline feedback
 
@@ -59,7 +59,8 @@ model, ready to compare:
 
 ```python
 feedback = pd.read_csv("pasr-pipeline-feedback.csv")
-print(feedback.groupby(["speaker_model", "face_model"]).worked.agg(["mean", "count"]))
+by = ["tested_with", "speaker_model", "face_model"]  # real person, or pictures and recordings
+print(feedback.groupby(by).worked.agg(["mean", "count"]))
 print(feedback[~feedback.worked][["speaker_model", "comment"]])  # what went wrong, per model
 ```
 

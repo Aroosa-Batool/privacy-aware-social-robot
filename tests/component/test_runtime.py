@@ -162,6 +162,7 @@ async def test_each_run_logs_what_it_ran_with_for_the_feedback_on_it(runtime: Ru
             "sensitivity_model": reminder.sensitivity_source,  # the model that judged it
             "voice_threshold": settings.identity.voice_threshold,
             "face_threshold": settings.identity.face_threshold,
+            "tested_with": "real_person",
         }
         steps = (EventType.FLOW_STARTED, EventType.FLOW_STATE)
         logged = [e.type for e in runtime.bus.recent if e.type in steps]

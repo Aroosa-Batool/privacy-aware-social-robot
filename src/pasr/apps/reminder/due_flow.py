@@ -176,7 +176,8 @@ class DueFlow:
     def _started(self) -> None:
         """What this run works with, so runs (and the owner's feedback on them) can be compared
         by model: the speaker, VAD and face models, who decided the reminder is sensitive (a
-        model's name, or "user"), the thresholds, and the privacy choices."""
+        model's name, or "user"), the thresholds, the privacy choices, and whether the owner is
+        testing with a real person or with pictures and recordings."""
         settings = self.settings
         perception, identity, privacy = settings.perception, settings.identity, settings.privacy
         self.ctx.bus.emit(
@@ -192,6 +193,7 @@ class DueFlow:
             sensitivity_model=self.reminder.sensitivity_source,
             voice_threshold=identity.voice_threshold,
             face_threshold=identity.face_threshold,
+            tested_with=settings.study.tested_with,
         )
 
     async def run(self) -> FlowOutcome:

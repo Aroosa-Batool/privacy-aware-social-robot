@@ -8,6 +8,12 @@ be replayed from anything it kept. Instead, a researcher supplies recordings, an
 exactly like the devices they replace. They carry no hidden information about who is in them.
 ([ADR 0005](/decisions/0005-file-sources-and-calibration))
 
+:::note Pictures held up to the camera are something else
+Showing the robot pictures or playing a video through speakers keeps the real camera and
+microphone. Switch on **Testing with pictures & recordings** on Home or with a quick test instead,
+so each run is labelled with it ([Home](/dashboard/home)).
+:::
+
 ## Audio from a WAV file
 
 ```bash

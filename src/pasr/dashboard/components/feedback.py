@@ -10,6 +10,7 @@ from typing import Any
 
 import streamlit as st
 
+from pasr.dashboard.components import study
 from pasr.dashboard.components.notify import notify, rerun
 from pasr.dashboard.state import attempt, humanize, offline
 from pasr.orchestration.clock import local_now
@@ -41,22 +42,29 @@ def outcome(run: Run) -> str:
 
 
 def models(run: Run) -> str:
-    """The models, thresholds and privacy choices the run used, in a line."""
+    """What the run was tested with, and the models, thresholds and privacy choices it used."""
     condition = run.condition
     if not condition:
         return "Its models were not logged: it ran before the robot logged them."
+    tested = condition.get("tested_with")
     named = [f"{label} {condition[key]}" for key, label in MODELS.items() if key in condition]
     return (
-        f"Ran with {', '.join(named)}; thresholds voice {condition.get('voice_threshold')}, "
+        (f"Tested with {study.WORDS[tested]}. " if tested in study.WORDS else "")
+        + f"Ran with {', '.join(named)}; thresholds voice {condition.get('voice_threshold')}, "
         f"face {condition.get('face_threshold')}; detection {humanize(condition.get('mode'))}, "
         f"policy {humanize(condition.get('policy'))}."
     )
 
 
 def rate(session_id: str, reminder_id: int) -> None:
-    """Thumbs up or down on one run, what went wrong with a thumbs down, and Save."""
+    """What the run was tested with and used; thumbs up or down on it, what went wrong with a
+    thumbs down, and Save."""
     repos = offline().repos
     saved = repos.feedback.get(session_id, reminder_id)
+    # the log's run, or the copy kept with the feedback once the log has been purged
+    run = repos.events.run(session_id, reminder_id) or (saved.run if saved else None)
+    if run is not None:
+        st.caption(models(run))
     key = f"feedback-{session_id}-{reminder_id}"
     with st.container(horizontal=True, vertical_alignment="center", gap="small"):
         st.markdown(QUESTION, width="content")
@@ -83,8 +91,7 @@ def rate(session_id: str, reminder_id: int) -> None:
         )
     if not save or thumbs is None:
         return
-    run = repos.events.run(session_id, reminder_id) or (saved.run if saved else None)
-    if run is None:  # the event log was purged while the page was open
+    if run is None:  # neither logged nor rated: the log was purged while the page was open
         notify(f"Reminder #{reminder_id}'s run is no longer in the event log.", "error")
         return
     worked = thumbs != DID_NOT_WORK

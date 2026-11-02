@@ -377,6 +377,7 @@ CONDITION: dict[str, Any] = {
     "face_threshold": 0.4,
     "mode": "audio_and_camera",
     "policy": "always_ask",
+    "tested_with": "pictures_and_recordings",
 }
 
 
@@ -421,6 +422,7 @@ def test_home_asks_whether_the_last_run_worked_and_what_went_wrong(
     monkeypatch.setattr(Runtime, "snapshot", showing(ended))
     app = run(DASHBOARD / "views" / "overview.py")
     assert any(m.value == QUESTION for m in app.markdown)
+    assert any(c.value.startswith("Tested with pictures and recordings.") for c in app.caption)
     assert not app.text_area  # asked only with a thumbs down
     app.feedback[0].set_value(0).run()
     (comment,) = app.text_area
@@ -462,7 +464,35 @@ def test_any_run_can_be_rated_on_the_events_page_and_downloaded(data_dir: Path):
         (7, True, ""),
     ]
     assert table[0]["speaker_model"] == "speechbrain_ecapa"  # a column per model, to compare
+    assert table[0]["tested_with"] == "pictures_and_recordings"  # and for what was tested
     assert [d.proto.label for d in app.get("download_button")][-1] == "Download feedback CSV"
+
+
+def test_testing_with_pictures_and_recordings_is_switched_on_home_and_reaches_the_robot(
+    data_dir: Path,
+):
+    from pasr.dashboard.components.study import LABEL
+
+    state.get_handle().start()
+    app = run(DASHBOARD / "views" / "overview.py")
+    switch = next(t for t in app.toggle if t.label == LABEL)
+    assert not switch.value  # a real person, unless switched
+    switch.set_value(True).run()
+    assert not app.exception
+    assert load_settings().study.tested_with == "pictures_and_recordings"
+    assert state.on_robot(lambda rt: rt.settings.study.tested_with) == "pictures_and_recordings"
+    assert next(t for t in app.toggle if t.label == LABEL).value  # stays on
+
+
+def test_a_quick_test_saves_what_it_is_tested_with_before_it_starts(data_dir: Path):
+    from pasr.dashboard.components.study import LABEL
+
+    app = run(DASHBOARD / "views" / "reminders.py")
+    next(t for t in app.toggle if t.label == LABEL).set_value(True)
+    next(b for b in app.button if b.label == "Add test reminder").click().run()
+    assert not app.exception
+    assert load_settings().study.tested_with == "pictures_and_recordings"
+    assert len(state.offline().service.upcoming()) == 1
 
 
 def test_home_leaves_starting_the_robot_to_the_header(data_dir: Path):

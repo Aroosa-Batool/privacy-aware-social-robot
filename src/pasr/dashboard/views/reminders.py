@@ -6,6 +6,7 @@ import streamlit as st
 
 from pasr.apps.reminder.capture import CaptureResult
 from pasr.apps.reminder.service import DATE_QUESTION, ReminderDraft
+from pasr.dashboard.components import study
 from pasr.dashboard.components.confirm import confirm
 from pasr.dashboard.components.forms import text_form
 from pasr.dashboard.components.loading import working
@@ -123,8 +124,10 @@ with add_test:
     with text_form("test-reminder"):
         title = st.text_input("Title", value="Doctor appointment", placeholder="A title")
         sensitive = st.toggle("Sensitive", value=True)
+        with_media = st.toggle(study.LABEL, value=study.media(), help=study.HELP)
         seconds = st.number_input("Due in (seconds)", min_value=5, max_value=3600, value=45)
         if st.form_submit_button("Add test reminder", type="primary") and title.strip():
+            study.save(with_media)  # before the run starts, which logs it
             due = now() + timedelta(seconds=int(seconds))
             reminder = attempt(
                 "Adding the test reminder",

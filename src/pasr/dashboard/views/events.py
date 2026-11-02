@@ -8,7 +8,7 @@ from collections import Counter
 import pandas as pd
 import streamlit as st
 
-from pasr.dashboard.components.feedback import models, outcome, rate, verdict
+from pasr.dashboard.components.feedback import outcome, rate, verdict
 from pasr.dashboard.components.feedback import rows as feedback_rows
 from pasr.dashboard.components.tables import with_flags
 from pasr.dashboard.state import offline
@@ -95,7 +95,6 @@ else:
     first_unrated = next((i for i, key in enumerate(keys) if key not in rated), 0)
     chosen = st.selectbox("Run", keys, index=first_unrated, format_func=label)
     with st.container(border=True):
-        st.caption(f"Session {chosen[0]}. {models(runs[chosen])}")
         rate(*chosen)
 
 if rated:

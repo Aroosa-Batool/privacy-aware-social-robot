@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from pasr.dashboard.components import study
 from pasr.dashboard.components.feedback import rate
 from pasr.dashboard.components.notify import notify
 from pasr.dashboard.components.pipeline import flow_steps, pipeline_strip, summary
@@ -11,6 +12,7 @@ from pasr.orchestration.runtime import setup_warnings
 
 handle = get_handle()
 st.title("Home")  # the live view switch is in the header bar, on every page
+study.switch()  # outside the refreshes: the next runs are logged with it
 
 
 def stopped_view() -> None:  # Start robot is in the header bar, so not repeated here

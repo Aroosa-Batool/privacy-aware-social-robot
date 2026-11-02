@@ -610,6 +610,17 @@ class LiveViewSettings(_Group):
     )
 
 
+class StudySettings(_Group):
+    tested_with: Literal["real_person", "pictures_and_recordings"] = setting(
+        "real_person",
+        tier="basic",
+        description="What the robot is being tested with, logged as each reminder run starts "
+        "(flow.started) so runs can be compared by it: 'real_person' for people in the room, "
+        "'pictures_and_recordings' for pictures shown to the camera and recordings played "
+        "through speakers. A label only: the camera and microphone work the same either way.",
+    )
+
+
 class Settings(BaseModel):
     """Effective settings. ``pasr.settings.loader.load_settings`` layers them (lowest → highest):
     defaults, profile YAML, ``<data_dir>/settings.json`` overrides, ``.env`` and ``PASR__…``
@@ -628,6 +639,7 @@ class Settings(BaseModel):
     storage: StorageSettings = Field(default_factory=StorageSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     live_view: LiveViewSettings = Field(default_factory=LiveViewSettings)
+    study: StudySettings = Field(default_factory=StudySettings)
 
 
 STRUCTURAL_GROUPS = frozenset({"perception", "hardware", "storage"})

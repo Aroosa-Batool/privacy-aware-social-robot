@@ -15,6 +15,12 @@ the step that ran.
   thresholds, the detection choice (`mode`), the policy, `sensitive` and `origin`. All are
   labels and numbers, within the log's allow-list. They come from the flow's settings snapshot,
   so a setting changed while it runs does not change what it records.
+- It also logs what the robot is **tested with** (`tested_with`, setting `study.tested_with`):
+  `real_person`, or `pictures_and_recordings` when the owner shows the camera pictures and
+  plays recordings (a video) through speakers. A label only: the camera and microphone work the
+  same. It is switched on Home and in the Quick test form (saved before the test starts) and
+  applies live, from the next run; the rating box shows what a run was logged with, so a run
+  started before the switch is noticed.
 - A **run** is one reminder's flow in one session (a reminder interrupted by a restart runs
   again in the next session, as a second run). It is put together from its `flow.started`,
   `flow.state` and `reminder.delivered` events.

@@ -17,6 +17,15 @@ description: What the robot is set to do, when it starts next, and where the cur
 When the robot is stopped, Home lists the next five reminders instead, and a yellow toast lists
 anything left to set up (no owner, no face or voice enrolled, models missing).
 
+## Real person, or pictures and recordings
+
+**Testing with pictures & recordings**, under the title, says what you are testing the robot
+with: off for real people in the room, on when you show it pictures and play recordings (a
+video, for example) through speakers. Each reminder run logs it as it starts (`tested_with` in
+`flow.started`), so switch it before the run begins; it applies at once, also while the robot
+runs, and stays as set. The rating box below the pipeline says what the run was logged with. The
+camera and microphone work the same either way: it is a label for comparing runs.
+
 ## The pipeline
 
 The row of eight stages follows the reminder being handled right now, or the last one:
@@ -42,7 +51,8 @@ Once a run has ended, Home asks under the pipeline: *Did this run work as it sho
 thumbs up, or the thumbs down and, if you like, write **what went wrong** (for example, "it took
 my own voice for someone else's"). Click **Save feedback**; the line next to the button says
 what was saved. The comment is kept as you type, through the page's refreshes. It is saved with
-the models and thresholds the run used, so runs can be compared by model. Missed one? Rate it on
+the models and thresholds the run used and what it was tested with, shown above the thumbs, so
+runs can be compared by them. Missed one? Rate it on
 the [Events](/dashboard/events#pipeline-feedback) page. ([ADR 0014](/decisions/0014-pipeline-feedback))
 
 ## Steps and events

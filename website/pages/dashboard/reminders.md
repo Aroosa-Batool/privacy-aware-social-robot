@@ -41,6 +41,12 @@ the robot starts at once. With the microphone and camera it listens for the firs
 left (at least 15 seconds) and scans the room in the rest; with the microphone only it listens up
 to the due time. Quick tests are marked *test* in the table and on Home.
 
+Switch on **Testing with pictures & recordings** when you show the robot pictures and play
+recordings (a video, for example) through speakers instead of having real people in the room.
+It is saved when you add the test, before the run starts, and the run logs it, so you can compare
+runs by it ([Pipeline feedback](/research/event-log#pipeline-feedback)). It stays as set for
+later runs; the same switch is on Home. The camera and microphone work the same either way.
+
 ## By voice
 
 ::image src=/assets/media/reminders-voice.webp alt="The By voice tab with a Talk to the robot button above the reminders table." url=localhost:8501/reminders

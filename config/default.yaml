@@ -120,3 +120,5 @@ logging:
   level: INFO
 live_view:
   enabled: false
+study:
+  tested_with: real_person

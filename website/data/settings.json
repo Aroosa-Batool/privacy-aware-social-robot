@@ -839,5 +839,13 @@
     "tier": "advanced",
     "limits": [],
     "description": "Open a window on the laptop while the robot listens, scans, enrols or calibrates (whether it runs from the dashboard or a terminal): the camera frames it analyses with each face labelled (owner or someone else), the microphone level and each voice match. Nothing is stored, but faces of people nearby appear on screen: use it for development, or with participants' consent."
+  },
+  {
+    "key": "study.tested_with",
+    "group": "study",
+    "default": "real_person",
+    "tier": "basic",
+    "limits": [],
+    "description": "What the robot is being tested with, logged as each reminder run starts (flow.started) so runs can be compared by it: 'real_person' for people in the room, 'pictures_and_recordings' for pictures shown to the camera and recordings played through speakers. A label only: the camera and microphone work the same either way."
   }
 ]
