@@ -407,16 +407,24 @@ def main(csv: Path) -> None:
         ],
         columns=["Stage", "N"],
     )
+    # The incomplete records were deleted after the final export, as promised to the
+    # participants. participant_flow.csv keeps the counts of the full export (numbers only);
+    # on an export without incomplete records the recorded counts are reported instead.
+    recorded = HERE / "participant_flow.csv"
+    if recorded.exists() and len(df) == n:
+        rec = pd.read_csv(recorded)
+        if int(rec["N"].iloc[-1]) != n:
+            raise SystemExit(
+                "participant_flow.csv does not match the number of submitted responses"
+            )
+        flow = rec
     save(flow, "flow", "Participant flow from started to analysed responses.", "tab:study-flow")
     say("# Survey analysis report")
     say(f"Export: {csv.name}; rows: {len(df)}; submitted: {n}")
     say("lastpage: " + str(df["lastpage"].value_counts(dropna=False).sort_index().to_dict()))
     say(flow.to_string(index=False))
 
-    # ---- descriptives: demographics (completers and all who answered)
-    def counts(col, frame):
-        return frame[col].value_counts(dropna=True)
-
+    # ---- descriptives: demographics of the completers (the analysed sample)
     demo_rows = []
     for col, lab in [
         ("DM01", "Gender"),
@@ -426,32 +434,21 @@ def main(csv: Path) -> None:
         ("TE03", "Uses a smartwatch"),
         ("TE04", "Uses a voice assistant"),
     ]:
-        c_all, c_comp = counts(col, df), counts(col, comp)
-        for k in c_comp.index.union(c_all.index):
-            if col == "DM03" and c_comp.get(k, 0) == 0:
-                continue
-            demo_rows.append((lab, k, int(c_comp.get(k, 0)), int(c_all.get(k, 0))))
+        for k, v in comp[col].value_counts(dropna=True).items():
+            demo_rows.append((lab, k, int(v)))
     age_c = pd.to_numeric(comp["DM02"], errors="coerce")
-    age_a = pd.to_numeric(df["DM02"], errors="coerce")
     demo_rows.append(
-        (
-            "Age",
-            "Median (range)",
-            f"{age_c.median():.0f} ({age_c.min():.0f}-{age_c.max():.0f})",
-            f"{age_a.median():.0f} ({age_a.min():.0f}-{age_a.max():.0f})",
-        )
+        ("Age", "Median (range)", f"{age_c.median():.0f} ({age_c.min():.0f}-{age_c.max():.0f})")
     )
-    demo = pd.DataFrame(
-        demo_rows, columns=["Variable", "Level", "Completers", "All who answered"]
-    ).astype(str)
+    demo = pd.DataFrame(demo_rows, columns=["Variable", "Level", "n"]).astype(str)
     save(
         demo,
         "demographics",
-        f"Sample characteristics (completers, $N = {n}$, and everyone who answered the item).",
+        f"Sample characteristics of the completers ($N = {n}$).",
         "tab:study-demographics",
-        colspec="llrr",
+        colspec="llr",
     )
-    say("\n## Demographics (completers | all)")
+    say("\n## Demographics (completers)")
     say(demo.to_string(index=False))
     say(
         f"interviewtime completers (s): median {comp.interviewtime.median():.0f}, "
@@ -1147,28 +1144,42 @@ def figures(long: pd.DataFrame, rank: pd.DataFrame, mrank: pd.DataFrame, inf: pd
         ax.set_axisbelow(True)
         ax.set_title(f"{SHORT[m]}\n(n = {len(w)})", fontsize=9, color=INK, loc="left")
 
-    def grid(ms, name):
-        fig, axes = plt.subplots(
-            1, len(ms), figsize=(1.5 * len(ms) + 0.3, 2.6), constrained_layout=True
+    def grid(ms, name, ncol=None):
+        legend = (
+            "A = always disclose, B = ask every time, C = ask once and remember\n"
+            "black bar = median, grey lines join one participant"
         )
-        for ax, m in zip(np.atleast_1d(axes), ms, strict=False):
+        if ncol is None:  # one row
+            fig, axes = plt.subplots(
+                1, len(ms), figsize=(1.5 * len(ms) + 0.3, 2.6), constrained_layout=True
+            )
+        else:  # several rows, so that the figure fits the text width without shrinking
+            nrow = -(-len(ms) // ncol)
+            fig, axes = plt.subplots(
+                nrow, ncol, figsize=(1.85 * ncol + 0.3, 2.45 * nrow), constrained_layout=True
+            )
+        axes = np.atleast_1d(axes).ravel()
+        for ax, m in zip(axes, ms, strict=False):
             if m.startswith("ueq"):
                 panel(ax, m, (-3.3, 3.3), range(-3, 4))
             elif m.startswith("trust"):
                 panel(ax, m, (-0.3, 7.3), range(0, 8))
             else:
                 panel(ax, m, (0.7, 7.3), range(1, 8))
-        fig.supxlabel(
-            "A = always disclose, B = ask every time, C = ask once and remember\n"
-            "black bar = median, grey lines join one participant",
-            fontsize=7.5,
-            color=INK2,
-        )
+        spare = axes[len(ms) :]
+        for ax in spare:
+            ax.axis("off")
+        if len(spare):  # the legend goes into the first empty panel
+            spare[0].text(
+                0.06, 0.5, legend.replace(", ", ",\n"), fontsize=7.5, color=INK2, va="center"
+            )
+        else:
+            fig.supxlabel(legend, fontsize=7.5, color=INK2)
         fig.savefig(OUT / f"{name}.pdf")
         plt.close(fig)
 
     grid(["privacy", "acc", "ctl", "ueq_prag"], "fig_confirmatory")
-    grid(["trust_perf", "trust_moral", "soccomp", "saw", "int"], "fig_exploratory")
+    grid(["trust_perf", "trust_moral", "soccomp", "saw", "int"], "fig_exploratory", ncol=3)
 
     # rankings: share of participants placing each option at each rank (sequential blues)
     blues = ["#184f95", "#2a78d6", "#5598e7", "#86b6ef"]  # sequential, light end >= 2:1 on white

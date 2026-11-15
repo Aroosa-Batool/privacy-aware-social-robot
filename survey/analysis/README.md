@@ -14,7 +14,10 @@ Re-run unchanged on a newer export; new free-text answers are listed as UNCODED 
 
 ## Decisions fixed before looking at outcomes (approved 2026-11-14)
 
-- **Sample:** submitted responses only. Partial responses appear only in the flow table.
+- **Sample:** submitted responses only. Partial responses appear only in the flow table. The incomplete
+  records were deleted after the final export; `participant_flow.csv` keeps the counts of the
+  full export (numbers only) and is used for the flow table when the export contains no
+  incomplete records. All other outputs are the same with or without the incomplete records.
 - **Manipulation checks, primary rule:** a participant enters a paired comparison only if they passed
   the checks of both scenarios in it. Sensitivity: no exclusion; strict (all three passed).
 - **Added after the primary results (2026-11-14), sensitivity only:** exploratory Friedman and pairwise
