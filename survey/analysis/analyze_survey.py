@@ -192,8 +192,19 @@ def paired(wide: pd.DataFrame, hi: str, lo: str, alternative: str) -> dict:
     # Scale means are floats, so equal differences (e.g. 5.67 - 4.33 and 3.00 - 1.67) can differ in
     # the last bits and would be ranked as unequal. Rounding keeps theoretical ties tied.
     d = np.round(x - y, 9)
+    nz = d[d != 0]
+    # How SciPy's method="auto" resolves the p value (SciPy 1.18): exact without ties or zeros
+    # for n <= 50; with ties or zeros, exhaustive permutation for n <= 13, otherwise the normal
+    # approximation with tie and zero correction (no continuity correction).
+    if len(np.unique(np.abs(nz))) == len(nz) == len(d) and len(d) <= 50:
+        p_method = "exact"
+    elif len(d) <= 13:
+        p_method = "permutation"
+    else:
+        p_method = "normal approximation"
     out = {
         "n": len(d),
+        "p_method": p_method,
         "comparison": f"{hi} - {lo}",
         "median_hi": np.median(x),
         "median_lo": np.median(y),
@@ -263,10 +274,13 @@ def omega_total(items: pd.DataFrame) -> float:
         return np.nan
     try:
         from statsmodels.multivariate.factor import Factor
+        from statsmodels.tools.sm_exceptions import ConvergenceWarning
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
             fa = Factor(items.to_numpy(float), n_factor=1, method="ml").fit()
+        if any(issubclass(w.category, ConvergenceWarning) for w in caught):
+            return np.nan  # the optimiser did not converge
         lam = np.abs(np.asarray(fa.loadings).ravel())
         psi = np.asarray(fa.uniqueness).ravel()
         if np.any(psi < 0.005):  # Heywood case
@@ -666,6 +680,52 @@ def main(csv: Path) -> None:
     )
     say("\n## Confirmatory (primary rule)\n" + tab.to_string(index=False))
     say("\n## Robustness\n" + rob_tab.to_string(index=False))
+
+    # ---- H3 scoring sensitivity: CTL has no midpoint (codes 1-3, 5-7). "Equal spacing" closes
+    # the gap (5, 6, 7 -> 4, 5, 6); the sign test uses only the direction of each difference.
+    h3_rows = []
+    for rule in ("per_comparison", "none"):
+        w = wide_for("ctl", rule, "B", "C")[["B", "C"]].dropna()
+        for scoring, ww in (("original", w), ("equal spacing", w.replace({5: 4, 6: 5, 7: 6}))):
+            r = paired(ww, "B", "C", "greater")
+            h3_rows.append(
+                {
+                    "rule": rule,
+                    "test": f"Wilcoxon, {scoring}",
+                    "n": r["n"],
+                    "W": r["W"],
+                    "p": r["p"],
+                }
+            )
+        d = (w["B"] - w["C"]).to_numpy(float)
+        k, n_nz = int((d > 0).sum()), int((d != 0).sum())
+        h3_rows.append(
+            {
+                "rule": rule,
+                "test": f"Sign test ({k} of {n_nz} non-zero differences favour B)",
+                "n": len(d),
+                "W": np.nan,
+                "p": float(stats.binomtest(k, n_nz, alternative="greater").pvalue),
+            }
+        )
+    h3 = pd.DataFrame(h3_rows)
+    save(
+        pd.DataFrame(
+            {
+                "Exclusion": h3.rule.map({"per_comparison": "Primary", "none": "None"}),
+                "Test": h3.test,
+                "n": h3.n,
+                "W": h3.W.map(lambda x: f2(x, 1)),
+                "p": h3.p.map(fmt_p),
+            }
+        ),
+        "h3_scoring",
+        "Sensitivity of H3 (control, B $>$ C) to the scoring of the control item.",
+        "tab:study-h3-scoring",
+        colspec="llrrr",
+        note=r"One-sided tests. Equal spacing scores the answers without a midpoint as 1 to 6.",
+    )
+    say("\n## H3 scoring sensitivity\n" + h3.to_string(index=False))
 
     # ---- exploratory: ACC B vs C two-sided
     ex_rows = []

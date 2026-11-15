@@ -1,8 +1,11 @@
 # User-study analysis (LimeSurvey 841423)
 
 ```bash
-uv run --with scipy --with statsmodels --with matplotlib python -I survey/analysis/analyze_survey.py [export.csv]
+uv run --with scipy==1.18.1 --with statsmodels==0.15.0 --with matplotlib==3.11.2 python -I survey/analysis/analyze_survey.py [export.csv]
 ```
+
+Versions used for the thesis: Python 3.12.16, SciPy 1.18.1, statsmodels 0.15.0, pandas 3.1.0,
+NumPy 2.5.4, matplotlib 3.11.2 (pandas and NumPy from `uv.lock`).
 
 Reads the raw export (default `survey/results-survey841423.csv`), drops all IP columns on load,
 and writes everything to `survey/analysis/out/` (git-ignored: it contains free text).
@@ -48,7 +51,8 @@ p = .048 (n = 21), paired t p = .025, LMM p = .020. H4: p >= .48 everywhere.
 Reliability: UEQ pragmatic alpha = .57 in scenario C, social competence alpha = .63 in A.
 
 H3 also depends on the scoring of the control item: with equally spaced options (1-6) p = .032,
-without exclusions p = .054; sign test (10 vs 4) p = .090.
+without exclusions p = .054; sign test (10 vs 4) p = .090. These variants are written to
+`out/h3_scoring.csv` / `.tex` and to `out/report.md`.
 
 ## Reliability and bootstrap details
 
@@ -56,11 +60,18 @@ without exclusions p = .054; sign test (10 vs 4) p = .090.
   (`statsmodels.multivariate.factor.Factor`, `method="ml"`), omega = (sum of |loadings|)^2 /
   ((sum of |loadings|)^2 + sum of uniquenesses). Reported as not estimable (`--`) if the scale has
   at least as many items as complete cases, an item has zero variance, the fit fails, or a
-  uniqueness is below .005 (Heywood case).
+  uniqueness is below .005 (Heywood case). Non-convergence is detected from statsmodels'
+  `ConvergenceWarning`; in this data set every non-converged fit was also a Heywood case, so the
+  check removes no reported value.
 - **Bootstrap:** percentile CI of the median paired difference, 10 000 resamples; every CI starts
   a new `numpy.random.default_rng(20261114)`, so each interval is reproducible on its own.
 - **Ties:** score differences are rounded to 9 decimals before ranking (Wilcoxon and Spearman),
   so mathematically equal differences of item means tie exactly.
+- **Wilcoxon p values:** `scipy.stats.wilcoxon(..., zero_method="pratt")` with the default
+  `method="auto"`. Because every comparison has tied or zero differences and n > 13, SciPy uses
+  the normal approximation with tie and Pratt zero correction and no continuity correction; the
+  method actually used is recorded per test in the `p_method` column of
+  `out/confirmatory_all_rules.csv` and `out/explore_acc_BC.csv`.
 
 ## Free-text coding audit trail
 
