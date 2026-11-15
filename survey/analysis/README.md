@@ -78,3 +78,15 @@ without exclusions p = .054; sign test (10 vs 4) p = .090. These variants are wr
 `codebook_definitions.csv` defines the 17 codes and their five themes; `codebook.csv` assigns codes
 to each of the 24 answers (response id, question, codes). Single coder; `out/report.md` lists any
 answer not yet coded as UNCODED.
+
+Procedure: (1) all answers were read; (2) each answer (one text field of one participant) received
+one or more short codes close to its wording; (3) overlapping codes were merged and every code was
+given a written definition (`codebook_definitions.csv`); (4) all answers were coded again with these
+definitions (`codebook.csv`); (5) codes were grouped into themes by the question they address.
+
+Second coder (optional): give a second person `codebook_definitions.csv` and
+`out/coding_sheet_second_coder.csv` (answers in shuffled order, without codes; written to `out/`
+only because it contains the raw answers). They fill the `codes` column with codes from the
+definitions, separated by `;`, and save it as `codebook_coder2.csv` (columns `id,field,codes`) next
+to `codebook.csv`. The next run reports Cohen's kappa over all answer x code decisions, kappa per
+code and the share of answers with identical code sets (`out/free_text_agreement.csv`).

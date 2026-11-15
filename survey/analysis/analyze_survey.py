@@ -1056,6 +1056,55 @@ def code_free_text(ft: pd.DataFrame, say) -> None:
     if len(uncoded):
         say("UNCODED (add to codebook.csv):\n" + uncoded[["id", "field"]].to_string(index=False))
 
+    # Blank sheet for an independent second coder: the answers without the codes, in a
+    # shuffled order (fixed seed). It contains raw answers and is written to out/ only.
+    sheet = ft.sample(frac=1, random_state=SEED)[["id", "field", "text"]].assign(codes="")
+    sheet.to_csv(OUT / "coding_sheet_second_coder.csv", index=False)
+    agreement(cb, set(defs.code), say)
+
+
+def agreement(cb: pd.DataFrame, codes: set[str], say) -> None:
+    """Agreement of the codebook with codebook_coder2.csv (same columns), if present.
+
+    Each answer x code pair is one yes/no decision. Reported: Cohen's kappa over all
+    decisions, the share of answers with identical code sets, and kappa per code."""
+    path = HERE / "codebook_coder2.csv"
+    if not path.exists():
+        say("Second coder: codebook_coder2.csv not found, agreement not computed")
+        return
+    c2 = pd.read_csv(path, dtype={"id": int}).fillna({"codes": ""})
+
+    def sets(d: pd.DataFrame) -> dict:
+        return {
+            (r.id, r.field): {c.strip() for c in str(r.codes).split(";") if c.strip()}
+            for r in d.itertuples()
+        }
+
+    a, b = sets(cb), sets(c2)
+    keys = sorted(set(a) & set(b))
+    unknown = set().union(*b.values()) - codes
+    if unknown:
+        say(f"Second coder: unknown codes ignored: {sorted(unknown)}")
+
+    def kappa(x: np.ndarray, y: np.ndarray) -> float:
+        po = float(np.mean(x == y))
+        pe = float(x.mean() * y.mean() + (1 - x.mean()) * (1 - y.mean()))
+        return np.nan if pe == 1 else (po - pe) / (1 - pe)
+
+    order = sorted(codes)
+    x = np.array([[c in a[k] for c in order] for k in keys], dtype=float)
+    y = np.array([[c in b[k] for c in order] for k in keys], dtype=float)
+    rows = [{"Code": c, "kappa": kappa(x[:, i], y[:, i])} for i, c in enumerate(order)]
+    same = np.mean([a[k] & codes == b[k] & codes for k in keys])
+    rows.append({"Code": "All decisions (pooled)", "kappa": kappa(x.ravel(), y.ravel())})
+    tab = pd.DataFrame(rows).round(2)
+    tab.to_csv(OUT / "free_text_agreement.csv", index=False)
+    say(
+        f"\n### Second coder: {len(keys)} answers compared; identical code sets: {same:.0%}; "
+        f"pooled kappa = {tab.kappa.iloc[-1]:.2f}"
+    )
+    say(tab.to_string(index=False))
+
 
 def figures(long: pd.DataFrame, rank: pd.DataFrame, mrank: pd.DataFrame, inf: pd.Series) -> None:
     import matplotlib
