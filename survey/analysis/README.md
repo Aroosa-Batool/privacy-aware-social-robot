@@ -36,7 +36,7 @@ Power: with 22 pairs a one-sided test at alpha = .05 has 80 % power only for d_z
 | Hypothesis | Verdict | Test (primary rule) | p (Holm) | r_rb | Mdn diff [95 % CI] | n |
 |---|---|---|---|---|---|---|
 | H1 privacy awareness B > A | supported | W = 168.0 | < .001 | .99 | 3.17 [2.00, 4.33] | 18 |
-| H1 privacy awareness C > A | supported | W = 163.0 | < .001 | .91 | 2.00 [1.00, 3.67] | 18 |
+| H1 privacy awareness C > A | supported | W = 162.0 | < .001 | .89 | 2.00 [1.00, 3.67] | 18 |
 | H2 acceptability B > A | supported | W = 160.0 | < .001 | .97 | 2.00 [1.00, 4.00] | 18 |
 | H2 acceptability C > A | supported | W = 157.5 | < .001 | .90 | 2.50 [1.50, 4.00] | 18 |
 | H3 control B > C | supported (modest; CI touches 0) | W = 102.5 | .030 | .57 | 2.00 [0.00, 3.00] | 16 |
@@ -46,3 +46,24 @@ Power: with 22 pairs a one-sided test at alpha = .05 has 80 % power only for d_z
 H1/H2 hold under all three exclusion rules, paired t and the mixed model. H3: no exclusion
 p = .048 (n = 21), paired t p = .025, LMM p = .020. H4: p >= .48 everywhere.
 Reliability: UEQ pragmatic alpha = .57 in scenario C, social competence alpha = .63 in A.
+
+H3 also depends on the scoring of the control item: with equally spaced options (1-6) p = .032,
+without exclusions p = .054; sign test (10 vs 4) p = .090.
+
+## Reliability and bootstrap details
+
+- **McDonald's omega_t:** one-factor maximum-likelihood factor model on the items
+  (`statsmodels.multivariate.factor.Factor`, `method="ml"`), omega = (sum of |loadings|)^2 /
+  ((sum of |loadings|)^2 + sum of uniquenesses). Reported as not estimable (`--`) if the scale has
+  at least as many items as complete cases, an item has zero variance, the fit fails, or a
+  uniqueness is below .005 (Heywood case).
+- **Bootstrap:** percentile CI of the median paired difference, 10 000 resamples; every CI starts
+  a new `numpy.random.default_rng(20261114)`, so each interval is reproducible on its own.
+- **Ties:** score differences are rounded to 9 decimals before ranking (Wilcoxon and Spearman),
+  so mathematically equal differences of item means tie exactly.
+
+## Free-text coding audit trail
+
+`codebook_definitions.csv` defines the 17 codes and their five themes; `codebook.csv` assigns codes
+to each of the 24 answers (response id, question, codes). Single coder; `out/report.md` lists any
+answer not yet coded as UNCODED.
