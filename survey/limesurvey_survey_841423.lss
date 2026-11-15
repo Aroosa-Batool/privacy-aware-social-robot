@@ -5657,7 +5657,7 @@
     <group_name/>
     <description><![CDATA[<h2 style="text-align:center;font-size:2.2em;margin:4px 0 16px">Scenario A</h2>
 
-<p><span style="font-size:14px;"><b>Location:</b> Alex's living room<br /><b>People:</b> Alex, Jordan and Ohbot<br /><b>Reminder:</b> <b style="font-size:1.2em">“Personal relationship counselling session at 3 PM today”</b>. Alex sets this reminder at noon, before Jordan arrives: one week ago.</span></p>
+<p><span style="font-size:14px;"><b>Location:</b> Alex's living room<br /><b>People:</b> Alex, Jordan and Ohbot<br /><b>Reminder:</b> <b style="font-size:1.2em">“Personal relationship counselling session at 3 PM today”</b>. Alex sets this reminder at noon, before Jordan arrives: </span></p>
 
 <p style="font-size:1.25em;line-height:1.4;margin:22px 0 6px"><span style="font-size:36px;"><b>1.</b> At noon, before Jordan arrives, Alex sets the reminder with Ohbot.</span></p>
 
