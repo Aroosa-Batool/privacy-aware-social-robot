@@ -14,6 +14,7 @@ docstrings below and survey/analysis/README.md.
 
 from __future__ import annotations
 
+import csv
 import sys
 import warnings
 from pathlib import Path
@@ -111,6 +112,15 @@ INK, INK2 = "#0b0b0b", "#52514e"
 # --------------------------------------------------------------------------- loading
 def load(path: Path) -> pd.DataFrame:
     raw = pd.read_csv(path, skipinitialspace=True, dtype=str, keep_default_na=False)
+    if raw.columns[0].strip() == "Response ID":
+        # Export with "question text" headings only: restore the codes by position from
+        # export_columns.csv (headings of a "code. text" export), checking every text.
+        known = pd.read_csv(HERE / "export_columns.csv", dtype=str, keep_default_na=False)
+        with open(path, encoding="utf-8-sig", newline="") as f:  # pandas renames repeats
+            texts = [c.strip() for c in next(csv.reader(f, skipinitialspace=True))]
+        if texts != [t.strip() for t in known["text"]]:
+            raise SystemExit("export columns do not match export_columns.csv")
+        raw.columns = [f"{c}. {t}" for c, t in zip(known["code"], texts)]
     raw = raw.drop(columns=[c for c in raw.columns if c.lower().startswith("ipaddr")])
     raw.columns = [c.split(". ", 1)[0].strip() for c in raw.columns]
     df = raw.apply(lambda s: s.str.strip()).replace("", np.nan)
@@ -565,7 +575,12 @@ def main(csv: Path) -> None:
         from statsmodels.stats.power import TTestPower
 
         pw = TTestPower()
-        for nn in (16, 22):
+        # smallest pair count under the primary rule, and all completers
+        n_pair = min(
+            int(((chk[a] == True) & (chk[b] == True)).sum())  # noqa: E712
+            for a, b in (("A", "B"), ("A", "C"), ("B", "C"))
+        )
+        for nn in sorted({n_pair, len(chk)}):
             dmin = pw.solve_power(nobs=nn, alpha=ALPHA, power=0.8, alternative="larger")
             say(
                 f"Power: n = {nn} pairs, one-sided alpha .05, 80% power -> d_z >= {dmin:.2f} "

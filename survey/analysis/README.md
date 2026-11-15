@@ -23,7 +23,7 @@ Re-run unchanged on a newer export; new free-text answers are listed as UNCODED 
 - **Added after the primary results (2026-11-14), sensitivity only:** exploratory Friedman and pairwise
   tests repeated with the ratings of every failed-check scenario set to missing
   (`out/exploratory_friedman_checks.*`). Not a replacement for the planned all-completer analysis.
-- **Speeders:** flagged if total time < median/3; not excluded (none flagged on 14 Nov).
+- **Speeders:** flagged if total time < median/3; not excluded (none flagged on 15 Nov).
 - **Scoring:** as in `Hypotheses – consent-scenario user study.xlsx` (scale means need all items).
 - **Confirmatory:** one-sided Wilcoxon signed-rank (Pratt zero handling); matched-pairs rank-biserial r
   (zeros dropped); median paired difference with 95 % percentile bootstrap CI (10 000 resamples,
@@ -34,28 +34,28 @@ Re-run unchanged on a newer export; new free-text answers are listed as UNCODED 
   (Kruskal-Wallis by position, unadjusted); RANK/MRANK; INFOSENS correlations; free-text coding
   (single coder, inductive, `codebook_definitions.csv` + `codebook.csv`).
 
-## Results summary (export of 2026-11-14, N = 22 completers)
+## Results summary (export of 2026-11-15, N = 24 completers)
 
-Power: with 22 pairs a one-sided test at alpha = .05 has 80 % power only for d_z >= 0.55
-(16 pairs: d_z >= 0.65).
+Power: with 24 pairs a one-sided test at alpha = .05 has 80 % power only for d_z >= 0.52
+(18 pairs: d_z >= 0.61).
 
 | Hypothesis | Verdict | Test (primary rule) | p (Holm) | r_rb | Mdn diff [95 % CI] | n |
 |---|---|---|---|---|---|---|
-| H1 privacy awareness B > A | supported | W = 168.0 | < .001 | .99 | 3.17 [2.00, 4.33] | 18 |
-| H1 privacy awareness C > A | supported | W = 162.0 | < .001 | .89 | 2.00 [1.00, 3.67] | 18 |
-| H2 acceptability B > A | supported | W = 160.0 | < .001 | .97 | 2.00 [1.00, 4.00] | 18 |
-| H2 acceptability C > A | supported | W = 157.5 | < .001 | .90 | 2.50 [1.50, 4.00] | 18 |
-| H3 control B > C | supported (modest; CI touches 0) | W = 102.5 | .030 | .57 | 2.00 [0.00, 3.00] | 16 |
-| H4 pragmatic quality C > B | not supported | W = 68.5 | .490 | .01 | 0.38 [-1.00, 0.88] | 16 |
-| Expl. acceptability C vs B (two-sided) | no difference detected | W = 45.0 | .413 | -.24 | 0.00 [-1.00, 0.50] | 16 |
+| H1 privacy awareness B > A | supported | W = 204.0 | < .001 | .99 | 3.17 [2.00, 4.33] | 20 |
+| H1 privacy awareness C > A | supported | W = 197.0 | < .001 | .91 | 2.00 [1.00, 3.67] | 20 |
+| H2 acceptability B > A | supported | W = 194.0 | < .001 | .97 | 2.00 [1.00, 4.00] | 20 |
+| H2 acceptability C > A | supported | W = 191.5 | < .001 | .92 | 2.50 [1.50, 4.00] | 20 |
+| H3 control B > C | supported (modest; CI touches 0) | W = 127.0 | .025 | .57 | 1.50 [0.00, 2.50] | 18 |
+| H4 pragmatic quality C > B | not supported | W = 92.0 | .388 | .08 | 0.38 [-0.75, 0.88] | 18 |
+| Expl. acceptability C vs B (two-sided) | no difference detected | W = 51.5 | .294 | -.29 | 0.00 [-1.50, 0.00] | 18 |
 
 H1/H2 hold under all three exclusion rules, paired t and the mixed model. H3: no exclusion
-p = .048 (n = 21), paired t p = .025, LMM p = .020. H4: p >= .48 everywhere.
-Reliability: UEQ pragmatic alpha = .57 in scenario C, social competence alpha = .63 in A.
+p = .040 (n = 23), paired t p = .020, LMM p = .020. H4: p >= .39 everywhere.
+Reliability: UEQ pragmatic alpha = .67 in scenario C, social competence alpha = .62 in A.
 
-H3 also depends on the scoring of the control item: with equally spaced options (1-6) p = .032,
-without exclusions p = .054; sign test (10 vs 4) p = .090. These variants are written to
-`out/h3_scoring.csv` / `.tex` and to `out/report.md`.
+H3 with equally spaced control options (1-6): p = .025, without exclusions p = .043; sign test
+(11 vs 4) p = .059. These variants are written to `out/h3_scoring.csv` / `.tex` and to
+`out/report.md`.
 
 ## Reliability and bootstrap details
 

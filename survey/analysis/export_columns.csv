@@ -1,0 +1,205 @@
+code,text
+id,Response ID
+submitdate,Date submitted
+lastpage,Last page
+startlanguage,Start language
+seed,Seed
+startdate,Date started
+datestamp,Date last action
+ipaddr,IP address
+DM01,What is your gender?
+DM02,What is your age?
+DM03,In which country do you currently reside?
+DM04,What is the highest degree you have earned?
+TE01,Have you ever interacted with a conversational robots or social robots?
+TE02[1],Which conversational robots or social robots have you interacted with?    [Pepper]
+TE02[2],Which conversational robots or social robots have you interacted with?    [Sophia]
+TE02[3],Which conversational robots or social robots have you interacted with?    [Nao]
+TE02[4],Which conversational robots or social robots have you interacted with?    [Jibo]
+TE02[other],Which conversational robots or social robots have you interacted with?    [Other]
+TE03,Do you use a smartwatch?
+TE04,"Do you use a voice assistant (for example Alexa, Siri or Google Assistant)?"
+G03Q38,"Next, please view every picture and read each caption carefully. After each story, you will answer questions about Ohbot’s behavior from Alex’s perspective. There are no right or wrong answers; we are interested in your own views."
+S1POS,"{sum(!is_empty(S2POS),!is_empty(S3POS),1)}"
+S1CHK,"In this scenario, what did Ohbot do before it said the reminder out loud?"
+S1PS[PRAW1],"Please imagine you are Alex. In this scenario, how much do you agree with each statement?  [Ohbot violated my privacy.]"
+S1PS[PRAW2],"Please imagine you are Alex. In this scenario, how much do you agree with each statement?  [Ohbot understands privacy boundaries.]"
+S1PS[PRAW5],"Please imagine you are Alex. In this scenario, how much do you agree with each statement?  [Ohbot's behaviour was privacy-aware.]"
+S1PS[SAW1],"Please imagine you are Alex. In this scenario, how much do you agree with each statement?  [Ohbot behaved appropriately in the social situation.]"
+S1SOC[SOC1],Ohbot … [is socially competent]
+S1SOC[SOC2],Ohbot … [is socially aware]
+S1SOC[SOC3],Ohbot … [is socially clueless]
+S1SOC[SOC4],Ohbot … [has strong social skills]
+S1MDMT[BEN1],How would you rate Ohbot in this story? [Benevolent]
+S1MDMT[REL1],How would you rate Ohbot in this story? [Reliable]
+S1MDMT[SIN1],How would you rate Ohbot in this story? [Sincere]
+S1MDMT[CAP1],How would you rate Ohbot in this story? [Capable]
+S1MDMT[ETH1],How would you rate Ohbot in this story? [Ethical]
+S1MDMT[BEN2],How would you rate Ohbot in this story? [Kind]
+S1MDMT[REL2],How would you rate Ohbot in this story? [Predictable]
+S1MDMT[SIN2],How would you rate Ohbot in this story? [Genuine]
+S1MDMT[CAP2],How would you rate Ohbot in this story? [Skilled]
+S1MDMT[ETH2],How would you rate Ohbot in this story? [Moral]
+S1MDMT[BEN3],How would you rate Ohbot in this story? [Considerate]
+S1MDMT[REL3],How would you rate Ohbot in this story? [Dependable]
+S1MDMT[SIN3],How would you rate Ohbot in this story? [Frank]
+S1MDMT[CAP3],How would you rate Ohbot in this story? [Competent]
+S1MDMT[ETH3],How would you rate Ohbot in this story? [Principled]
+S1MDMT[BEN4],How would you rate Ohbot in this story? [Has goodwill]
+S1MDMT[REL4],How would you rate Ohbot in this story? [Consistent]
+S1MDMT[SIN4],How would you rate Ohbot in this story? [Truthful]
+S1MDMT[CAP4],How would you rate Ohbot in this story? [Meticulous]
+S1MDMT[ETH4],How would you rate Ohbot in this story? [Has integrity]
+S1UEQ[UEQ1],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [obstructive|supportive]"
+S1UEQ[UEQ2],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [complicated|easy]"
+S1UEQ[UEQ3],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [inefficient|efficient]"
+S1UEQ[UEQ4],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [confusing|clear]"
+S1UEQ[UEQ5],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [boring|exciting]"
+S1UEQ[UEQ6],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [not interesting|interesting]"
+S1UEQ[UEQ7],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [conventional|inventive]"
+S1UEQ[UEQ8],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [usual|leading edge]"
+S1CON[CTL],How much do you agree with each statement? [I felt in control of what Ohbot said in front of Jordan.]
+S1CON[ACC],How much do you agree with each statement? [Ohbot's way of handling my permission is acceptable to me.]
+S1CON[INT],How much do you agree with each statement? [I would use a robot that works this way.]
+S1OPEN,Is there anything you would change about how Ohbot behaved in this story? (optional)
+S2POS,"{sum(!is_empty(S1POS),!is_empty(S3POS),1)}"
+S2CHK,"In this scenario, what did Ohbot do before it said the reminder out loud?"
+S2PS[PRAW1],"Please imagine you are Alex. In this scenario, how much do you agree with each statement?  [Ohbot violated my privacy.]"
+S2PS[PRAW2],"Please imagine you are Alex. In this scenario, how much do you agree with each statement?  [Ohbot understands privacy boundaries.]"
+S2PS[PRAW5],"Please imagine you are Alex. In this scenario, how much do you agree with each statement?  [Ohbot's behaviour was privacy-aware.]"
+S2PS[SAW1],"Please imagine you are Alex. In this scenario, how much do you agree with each statement?  [Ohbot behaved appropriately in the social situation.]"
+S2SOC[SOC1],Ohbot … [is socially competent]
+S2SOC[SOC2],Ohbot … [is socially aware]
+S2SOC[SOC3],Ohbot … [is socially clueless]
+S2SOC[SOC4],Ohbot … [has strong social skills]
+S2MDMT[BEN1],How would you rate Ohbot in this story? [Benevolent]
+S2MDMT[REL1],How would you rate Ohbot in this story? [Reliable]
+S2MDMT[SIN1],How would you rate Ohbot in this story? [Sincere]
+S2MDMT[CAP1],How would you rate Ohbot in this story? [Capable]
+S2MDMT[ETH1],How would you rate Ohbot in this story? [Ethical]
+S2MDMT[BEN2],How would you rate Ohbot in this story? [Kind]
+S2MDMT[REL2],How would you rate Ohbot in this story? [Predictable]
+S2MDMT[SIN2],How would you rate Ohbot in this story? [Genuine]
+S2MDMT[CAP2],How would you rate Ohbot in this story? [Skilled]
+S2MDMT[ETH2],How would you rate Ohbot in this story? [Moral]
+S2MDMT[BEN3],How would you rate Ohbot in this story? [Considerate]
+S2MDMT[REL3],How would you rate Ohbot in this story? [Dependable]
+S2MDMT[SIN3],How would you rate Ohbot in this story? [Frank]
+S2MDMT[CAP3],How would you rate Ohbot in this story? [Competent]
+S2MDMT[ETH3],How would you rate Ohbot in this story? [Principled]
+S2MDMT[BEN4],How would you rate Ohbot in this story? [Has goodwill]
+S2MDMT[REL4],How would you rate Ohbot in this story? [Consistent]
+S2MDMT[SIN4],How would you rate Ohbot in this story? [Truthful]
+S2MDMT[CAP4],How would you rate Ohbot in this story? [Meticulous]
+S2MDMT[ETH4],How would you rate Ohbot in this story? [Has integrity]
+S2UEQ[UEQ1],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [obstructive|supportive]"
+S2UEQ[UEQ2],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [complicated|easy]"
+S2UEQ[UEQ3],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [inefficient|efficient]"
+S2UEQ[UEQ4],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [confusing|clear]"
+S2UEQ[UEQ5],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [boring|exciting]"
+S2UEQ[UEQ6],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [not interesting|interesting]"
+S2UEQ[UEQ7],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [conventional|inventive]"
+S2UEQ[UEQ8],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [usual|leading edge]"
+S2CON[CTL],How much do you agree with each statement? [I felt in control of what Ohbot said in front of Jordan.]
+S2CON[ACC],How much do you agree with each statement? [Ohbot's way of handling my permission is acceptable to me.]
+S2CON[INT],How much do you agree with each statement? [I would use a robot that works this way.]
+S2OPEN,Is there anything you would change about how Ohbot behaved in this story? (optional)
+S3POS,"{sum(!is_empty(S1POS),!is_empty(S2POS),1)}"
+S3CHK,"In this scenario, what did Ohbot do before it said the reminder out loud?"
+S3PS[PRAW1],"Please imagine you are Alex. In this scenario, how much do you agree with each statement?  [Ohbot violated my privacy.]"
+S3PS[PRAW2],"Please imagine you are Alex. In this scenario, how much do you agree with each statement?  [Ohbot understands privacy boundaries.]"
+S3PS[PRAW5],"Please imagine you are Alex. In this scenario, how much do you agree with each statement?  [Ohbot's behaviour was privacy-aware.]"
+S3PS[SAW1],"Please imagine you are Alex. In this scenario, how much do you agree with each statement?  [Ohbot behaved appropriately in the social situation.]"
+S3SOC[SOC1],Ohbot … [is socially competent]
+S3SOC[SOC2],Ohbot … [is socially aware]
+S3SOC[SOC3],Ohbot … [is socially clueless]
+S3SOC[SOC4],Ohbot … [has strong social skills]
+S3MDMT[BEN1],How would you rate Ohbot in this story? [Benevolent]
+S3MDMT[REL1],How would you rate Ohbot in this story? [Reliable]
+S3MDMT[SIN1],How would you rate Ohbot in this story? [Sincere]
+S3MDMT[CAP1],How would you rate Ohbot in this story? [Capable]
+S3MDMT[ETH1],How would you rate Ohbot in this story? [Ethical]
+S3MDMT[BEN2],How would you rate Ohbot in this story? [Kind]
+S3MDMT[REL2],How would you rate Ohbot in this story? [Predictable]
+S3MDMT[SIN2],How would you rate Ohbot in this story? [Genuine]
+S3MDMT[CAP2],How would you rate Ohbot in this story? [Skilled]
+S3MDMT[ETH2],How would you rate Ohbot in this story? [Moral]
+S3MDMT[BEN3],How would you rate Ohbot in this story? [Considerate]
+S3MDMT[REL3],How would you rate Ohbot in this story? [Dependable]
+S3MDMT[SIN3],How would you rate Ohbot in this story? [Frank]
+S3MDMT[CAP3],How would you rate Ohbot in this story? [Competent]
+S3MDMT[ETH3],How would you rate Ohbot in this story? [Principled]
+S3MDMT[BEN4],How would you rate Ohbot in this story? [Has goodwill]
+S3MDMT[REL4],How would you rate Ohbot in this story? [Consistent]
+S3MDMT[SIN4],How would you rate Ohbot in this story? [Truthful]
+S3MDMT[CAP4],How would you rate Ohbot in this story? [Meticulous]
+S3MDMT[ETH4],How would you rate Ohbot in this story? [Has integrity]
+S3UEQ[UEQ1],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [obstructive|supportive]"
+S3UEQ[UEQ2],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [complicated|easy]"
+S3UEQ[UEQ3],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [inefficient|efficient]"
+S3UEQ[UEQ4],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [confusing|clear]"
+S3UEQ[UEQ5],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [boring|exciting]"
+S3UEQ[UEQ6],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [not interesting|interesting]"
+S3UEQ[UEQ7],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [conventional|inventive]"
+S3UEQ[UEQ8],"Please rate Ohbot in this story. For each pair of opposite words, choose the circle that best matches your impression. [usual|leading edge]"
+S3CON[CTL],How much do you agree with each statement? [I felt in control of what Ohbot said in front of Jordan.]
+S3CON[ACC],How much do you agree with each statement? [Ohbot's way of handling my permission is acceptable to me.]
+S3CON[INT],How much do you agree with each statement? [I would use a robot that works this way.]
+S3OPEN,Is there anything you would change about how Ohbot behaved in this story? (optional)
+MRANK[1],Please rank the options. [Rank 1]
+MRANK[2],Please rank the options. [Rank 2]
+MRANK[3],Please rank the options. [Rank 3]
+MOTHER,Is there any other way you would like Ohbot to detect whether someone else is in the room? (optional)
+RANK[1],Think about all the stories. How would you like Ohbot to handle private reminders when someone else is in the room? Please rank the options. [Rank 1]
+RANK[2],Think about all the stories. How would you like Ohbot to handle private reminders when someone else is in the room? Please rank the options. [Rank 2]
+RANK[3],Think about all the stories. How would you like Ohbot to handle private reminders when someone else is in the room? Please rank the options. [Rank 3]
+RANK[4],Think about all the stories. How would you like Ohbot to handle private reminders when someone else is in the room? Please rank the options. [Rank 4]
+INFOSENS[REM],"How sensitive do you consider the information ""Personal relationship counselling session at 3 PM today"" to be when it is disclosed in front of another person?  [Sensitivity of this information]"
+FINAL,"Do you have any other comments about Ohbot, the smartwatch or the stories? (optional)"
+interviewtime,Total time
+groupTime35468,Group time: Demographic
+DM01Time,Question time: DM01
+DM02Time,Question time: DM02
+DM03Time,Question time: DM03
+DM04Time,Question time: DM04
+groupTime35469,Group time: Technology Experience
+TE01Time,Question time: TE01
+TE02Time,Question time: TE02
+TE03Time,Question time: TE03
+TE04Time,Question time: TE04
+groupTime35470,Group time: Introduction:
+G03Q38Time,Question time: G03Q38
+groupTime35471,Group time:
+S1POSTime,Question time: S1POS
+S1CHKTime,Question time: S1CHK
+S1PSTime,Question time: S1PS
+S1SOCTime,Question time: S1SOC
+S1MDMTTime,Question time: S1MDMT
+S1UEQTime,Question time: S1UEQ
+S1CONTime,Question time: S1CON
+S1OPENTime,Question time: S1OPEN
+groupTime35472,Group time:
+S2POSTime,Question time: S2POS
+S2CHKTime,Question time: S2CHK
+S2PSTime,Question time: S2PS
+S2SOCTime,Question time: S2SOC
+S2MDMTTime,Question time: S2MDMT
+S2UEQTime,Question time: S2UEQ
+S2CONTime,Question time: S2CON
+S2OPENTime,Question time: S2OPEN
+groupTime35474,Group time:
+S3POSTime,Question time: S3POS
+S3CHKTime,Question time: S3CHK
+S3PSTime,Question time: S3PS
+S3SOCTime,Question time: S3SOC
+S3MDMTTime,Question time: S3MDMT
+S3UEQTime,Question time: S3UEQ
+S3CONTime,Question time: S3CON
+S3OPENTime,Question time: S3OPEN
+groupTime35509,Group time: How Ohbot notices people
+MRANKTime,Question time: MRANK
+MOTHERTime,Question time: MOTHER
+groupTime35476,Group time: Your overall preferences
+RANKTime,Question time: RANK
+INFOSENSTime,Question time: INFOSENS
+FINALTime,Question time: FINAL
