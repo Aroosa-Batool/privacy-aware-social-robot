@@ -15743,7 +15743,7 @@
     <tokenencryptionoptions/>
     <ipanonymize><![CDATA[Y]]></ipanonymize>
     <access_mode><![CDATA[O]]></access_mode>
-    <lastmodified><![CDATA[2026-11-11 07:41:39]]></lastmodified>
+    <lastmodified><![CDATA[2026-11-15 16:37:26]]></lastmodified>
     <showregisterpolicy><![CDATA[I]]></showregisterpolicy>
     <showtokenpolicy><![CDATA[I]]></showtokenpolicy>
    </row>
@@ -15861,6 +15861,7 @@
 <ul>
 	<li><b>Demographic data:</b> age, gender, highest degree, country of residence</li>
 	<li><b>Responses to robot stories</b></li>
+	<li><b>Anonymized IP addresses</b></li>
 </ul>
 
 <p> </p>
