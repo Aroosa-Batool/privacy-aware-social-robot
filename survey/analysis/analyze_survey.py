@@ -599,7 +599,8 @@ def main(csv: Path) -> None:
     for m in ("privacy", "acc"):
         w = long.pivot(index="id", columns="scenario", values=m)
         for hi in ("B", "C"):
-            dd = (w[hi] - w["A"]).rename("d").to_frame().join(inf.rename("s")).dropna()
+            # round like paired(): mathematically equal differences of means must tie exactly
+            dd = (w[hi] - w["A"]).round(9).rename("d").to_frame().join(inf.rename("s")).dropna()
             rho = stats.spearmanr(dd.s, dd.d)
             inf_rows.append([LABEL[m], f"{hi} - A", len(dd), f2(rho.statistic), fmt_p(rho.pvalue)])
     inf_tab = pd.DataFrame(inf_rows, columns=["Measure", "Difference", "n", "Spearman rho", "p"])
