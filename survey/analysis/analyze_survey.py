@@ -32,9 +32,9 @@ ALPHA = 0.05
 
 SCEN = {"S1": "A", "S2": "B", "S3": "C"}
 SCEN_NAME = {
-    "A": "A: always disclose",
+    "A": "A: disclose without asking",
     "B": "B: ask every time",
-    "C": "C: ask once, remember",
+    "C": "C: ask once and remember",
 }
 POLICY = {"A": "always_disclose", "B": "always_ask", "C": "ask_once_per_bystander"}
 CORRECT_CHK = {
@@ -1161,7 +1161,7 @@ def figures(long: pd.DataFrame, rank: pd.DataFrame, mrank: pd.DataFrame, inf: pd
 
     def grid(ms, name, ncol=None):
         legend = (
-            "A = always disclose, B = ask every time, C = ask once and remember\n"
+            "A = disclose without asking, B = ask every time, C = ask once and remember\n"
             "black bar = median, grey lines join one participant"
         )
         if ncol is None:  # one row
