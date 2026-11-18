@@ -23,3 +23,14 @@ id,field,codes
 40,MOTHER,other_sensors
 44,MOTHER,user_announces_visitor
 44,FINAL,per_reminder_sensitivity;per_person_preference
+199,OPEN_A,satisfied
+220,OPEN_B,satisfied
+257,OPEN_B,discreet_by_default;sensing_privacy_concern
+179,OPEN_C,consent_should_not_persist;per_reminder_sensitivity
+199,OPEN_C,sensing_privacy_concern
+202,OPEN_C,misrecognition_risk
+212,OPEN_C,consent_should_not_persist
+220,OPEN_C,consent_should_not_persist;silent_first_then_speak
+260,OPEN_C,per_reminder_sensitivity;consent_should_not_persist
+214,MOTHER,sensing_privacy_concern
+220,MOTHER,other_sensors

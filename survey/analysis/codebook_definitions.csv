@@ -2,6 +2,7 @@ theme,code,definition
 T1 Discretion when others are present,ask_before_disclosing,The robot should check with the owner (privately) before saying a personal reminder in front of others.
 T1 Discretion when others are present,discreet_by_default,"When someone else is present the reminder should be delivered silently (watch, notification) or phrased so the other person cannot tell, without asking."
 T1 Discretion when others are present,rejects_out_loud,Rejects the out-loud behaviour or says they would not use a robot that acts this way.
+T1 Discretion when others are present,silent_first_then_speak,"Notify silently first and say the reminder out loud only if the owner does not react in time."
 T2 Asking again vs. remembering,repeated_asking_burden,Being asked again for the same visitor is annoying or unnecessary.
 T2 Asking again vs. remembering,remembering_convenient,Remembering an earlier answer for a known visitor is convenient or desirable.
 T2 Asking again vs. remembering,per_person_preference,Whether a reminder may be said aloud depends on which person is present.
@@ -13,6 +14,6 @@ T3 Context and sensitivity,situational_awareness,The robot should understand the
 T4 General evaluation,socially_incompetent,Describes the robot as socially incompetent.
 T4 General evaluation,satisfied,States that the behaviour was fine or the right balance.
 T4 General evaluation,keep_it_short,Asks for shorter interactions or messages.
-T5 Detecting people (MOTHER),other_sensors,"Suggests other sensors (thermal, low-resolution cameras)."
+T5 Detecting people (MOTHER),other_sensors,"Suggests other sensors (thermal or low-resolution cameras, radio signals of nearby devices)."
 T5 Detecting people (MOTHER),user_announces_visitor,"The owner should tell the robot that a visitor is present (button, guest mode) so it need not sense."
 T5 Detecting people (MOTHER),sensing_privacy_concern,Expresses a privacy concern about the robot sensing people.

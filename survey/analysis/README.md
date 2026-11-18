@@ -7,12 +7,14 @@ uv run --with scipy==1.18.1 --with statsmodels==0.15.0 --with matplotlib==3.11.2
 Versions used for the thesis: Python 3.12.16, SciPy 1.18.1, statsmodels 0.15.0, pandas 3.1.0,
 NumPy 2.5.4, matplotlib 3.11.2 (pandas and NumPy from `uv.lock`).
 
-Reads the raw export (default `survey/results-survey841423.csv`), drops all IP columns on load,
+Reads the raw export (default `survey/results-survey841423_Latest.csv`), drops all IP columns on load,
 and writes everything to `survey/analysis/out/` (git-ignored: it contains free text).
 Re-run unchanged on a newer export; new free-text answers are listed as UNCODED in
 `out/report.md` until they are added to `codebook.csv`.
 
-## Decisions fixed before looking at outcomes (approved 2026-11-14)
+## Analysis decisions
+
+Fixed before the outcomes were inspected (approved 2026-11-14):
 
 - **Sample:** submitted responses only. Partial responses appear only in the flow table. The incomplete
   records were deleted after the final export; `participant_flow.csv` keeps the counts of the
@@ -20,42 +22,60 @@ Re-run unchanged on a newer export; new free-text answers are listed as UNCODED 
   incomplete records. All other outputs are the same with or without the incomplete records.
 - **Manipulation checks, primary rule:** a participant enters a paired comparison only if they passed
   the checks of both scenarios in it. Sensitivity: no exclusion; strict (all three passed).
-- **Added after the primary results (2026-11-14), sensitivity only:** exploratory Friedman and pairwise
-  tests repeated with the ratings of every failed-check scenario set to missing
-  (`out/exploratory_friedman_checks.*`). Not a replacement for the planned all-completer analysis.
-- **Speeders:** flagged if total time < median/3; not excluded (none flagged on 15 Nov).
-- **Scoring:** as in `Hypotheses – consent-scenario user study.xlsx` (scale means need all items).
-- **Confirmatory:** one-sided Wilcoxon signed-rank (Pratt zero handling); matched-pairs rank-biserial r
-  (zeros dropped); median paired difference with 95 % percentile bootstrap CI (10 000 resamples,
-  seed 20261114). Holm within H1 and within H2; H3 and H4 are single tests. alpha = .05.
+- **Speeders:** flagged if total time < median/3; not excluded (none flagged on 18 Nov).
+- **Scoring:** scale means need all items. ACC, CTL and INT have six options scored 1, 2, 3, 5, 6, 7.
+- **Tests:** Wilcoxon signed-rank (Pratt zero handling); matched-pairs rank-biserial r (zeros dropped);
+  median paired difference with 95 % percentile bootstrap CI (10 000 resamples, seed 20261114). alpha = .05.
 - **Robustness:** paired t; linear mixed model score ~ scenario + position + (1 | participant).
   No CLMM: R is not available and statsmodels' ordinal model has no random effects.
-- **Exploratory:** two-sided ACC C vs B; Friedman + Holm-corrected pairwise Wilcoxon; order effects
-  (Kruskal-Wallis by position, unadjusted); RANK/MRANK; INFOSENS correlations; free-text coding
-  (single coder, inductive, `codebook_definitions.csv` + `codebook.csv`).
+- **Other analyses:** Friedman + Holm-corrected pairwise Wilcoxon; order effects (Kruskal-Wallis by
+  position, unadjusted); RANK/MRANK; INFOSENS correlations; free-text coding (single coder, inductive,
+  `codebook_definitions.csv` + `codebook.csv`).
 
-## Results summary (export of 2026-11-15, N = 24 completers)
+Changed after a first analysis of 24 responses (export of 15 Nov 2026), on the supervisor's request
+(2026-11-18). The thesis states these changes in Sections 5.6 and 5.7 and in the limitations:
 
-Power: with 24 pairs a one-sided test at alpha = .05 has 80 % power only for d_z >= 0.52
-(18 pairs: d_z >= 0.61).
+- **Questions instead of hypotheses.** The four directional hypotheses (H1-H4, one-sided tests) were
+  dropped. The four main measures (privacy awareness, acceptability, control, UEQ-S pragmatic quality)
+  are each compared for all three pairs (B - A, C - A, C - B) with **two-sided** tests, Holm-adjusted
+  across the three pairs of a measure (`out/primary.*`, `out/primary_all_rules.csv`,
+  `out/primary_robustness.*`). The remaining measures keep the Friedman + pairwise analysis
+  (`out/exploratory_friedman.*`; the file name is kept from the first version).
+- **UEQ-S on the answer scale.** UEQ-S scores are reported from 1 to 7 as answered (official
+  UEQ-S score = value - 4), so that all figures and tables share one axis.
+- **Figures.** Box plots on a common axis from 0 to 7 (`fig_primary.pdf`, `fig_secondary.pdf`, slide
+  variants `fig_slide_*.pdf`). In `fig_rankings.pdf` the options are ordered by the number of first
+  ranks (then second ranks), most preferred at the top.
+- **Sensitivity only (added 2026-11-14):** Friedman and pairwise tests repeated with the ratings of
+  every failed-check scenario set to missing (`out/exploratory_friedman_checks.*`).
 
-| Hypothesis | Verdict | Test (primary rule) | p (Holm) | r_rb | Mdn diff [95 % CI] | n |
+## Results summary (final export of 2026-11-18, N = 34 completers)
+
+Power: with 34 pairs a two-sided test at alpha = .05 has 80 % power for d_z >= 0.50
+(26 pairs: d_z >= 0.57).
+
+| Measure | Pair | n | Mdn diff [95 % CI] | W | p (Holm) | r_rb |
 |---|---|---|---|---|---|---|
-| H1 privacy awareness B > A | supported | W = 204.0 | < .001 | .99 | 3.17 [2.00, 4.33] | 20 |
-| H1 privacy awareness C > A | supported | W = 197.0 | < .001 | .91 | 2.00 [1.00, 3.67] | 20 |
-| H2 acceptability B > A | supported | W = 194.0 | < .001 | .97 | 2.00 [1.00, 4.00] | 20 |
-| H2 acceptability C > A | supported | W = 191.5 | < .001 | .92 | 2.50 [1.50, 4.00] | 20 |
-| H3 control B > C | supported (modest; CI touches 0) | W = 127.0 | .025 | .57 | 1.50 [0.00, 2.50] | 18 |
-| H4 pragmatic quality C > B | not supported | W = 92.0 | .388 | .08 | 0.38 [-0.75, 0.88] | 18 |
-| Expl. acceptability C vs B (two-sided) | no difference detected | W = 51.5 | .294 | -.29 | 0.00 [-1.50, 0.00] | 18 |
+| Privacy awareness | B - A | 28 | 3.50 [2.33, 4.50] | 15.0 | < .001 | .95 |
+| | C - A | 29 | 2.33 [1.00, 3.67] | 39.0 | < .001 | .85 |
+| | C - B | 26 | -0.50 [-2.00, 0.17] | 82.5 | .025 | -.60 |
+| Acceptability (ACC) | B - A | 28 | 3.00 [2.00, 4.00] | 7.0 | < .001 | .99 |
+| | C - A | 29 | 2.00 [1.00, 4.00] | 28.5 | < .001 | .90 |
+| | C - B | 26 | 0.00 [-1.50, 0.00] | 100.5 | .171 | -.39 |
+| Control (CTL) | B - A | 27 | 4.00 [2.00, 5.00] | 16.5 | < .001 | .95 |
+| | C - A | 29 | 1.00 [0.00, 3.00] | 45.0 | .002 | .83 |
+| | C - B | 26 | -1.50 [-3.00, 0.00] | 53.5 | .003 | -.71 |
+| UEQ-S pragmatic quality | B - A | 28 | 0.50 [0.00, 1.25] | 111.0 | .127 | .46 |
+| | C - A | 29 | 0.25 [0.00, 1.00] | 150.0 | .351 | .30 |
+| | C - B | 26 | -0.12 [-0.75, 0.50] | 162.5 | .750 | -.07 |
 
-H1/H2 hold under all three exclusion rules, paired t and the mixed model. H3: no exclusion
-p = .040 (n = 23), paired t p = .020, LMM p = .020. H4: p >= .39 everywhere.
-Reliability: UEQ pragmatic alpha = .67 in scenario C, social competence alpha = .62 in A.
-
-H3 with equally spaced control options (1-6): p = .025, without exclusions p = .043; sign test
-(11 vs 4) p = .059. These variants are written to `out/h3_scoring.csv` / `.tex` and to
-`out/report.md`.
+Both asking policies are rated far above disclosing without asking on privacy awareness, acceptability
+and control under every exclusion rule, in paired t tests and in the mixed model. Control is lower
+when the answer is remembered than when the robot asks every time, also under every variant
+(no exclusion p = .003, paired t p = .002, LMM p < .001; with equally spaced control options and in a
+sign test as well, `out/control_scoring.*`). Privacy awareness C - B is not robust (no exclusion
+p = .087). Pragmatic quality and acceptability do not differ detectably between B and C.
+Reliability: only social competence in scenario A is below .70 (alpha = .62).
 
 ## Reliability and bootstrap details
 
@@ -74,12 +94,12 @@ H3 with equally spaced control options (1-6): p = .025, without exclusions p = .
   `method="auto"`. Because every comparison has tied or zero differences and n > 13, SciPy uses
   the normal approximation with tie and Pratt zero correction and no continuity correction; the
   method actually used is recorded per test in the `p_method` column of
-  `out/confirmatory_all_rules.csv` and `out/explore_acc_BC.csv`.
+  `out/primary_all_rules.csv`.
 
 ## Free-text coding audit trail
 
-`codebook_definitions.csv` defines the 17 codes and their five themes; `codebook.csv` assigns codes
-to each of the 24 answers (response id, question, codes). Single coder; `out/report.md` lists any
+`codebook_definitions.csv` defines the 18 codes and their five themes; `codebook.csv` assigns codes
+to each of the 35 answers (response id, question, codes). Single coder; `out/report.md` lists any
 answer not yet coded as UNCODED.
 
 Procedure: (1) all answers were read; (2) each answer (one text field of one participant) received

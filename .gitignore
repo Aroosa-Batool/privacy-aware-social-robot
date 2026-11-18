@@ -21,6 +21,7 @@ ohbotspeech.wav
 /models/
 *.sqlite
 *.sqlite3
+*.db
 *.db-wal
 *.db-shm
 
@@ -54,3 +55,8 @@ ohbotspeech.wav
 # Streamlit agent skills (environment-specific symlinks)
 .agents/skills/developing-with-streamlit
 .claude/skills/developing-with-streamlit
+survey/analysis/out/
+survey/results-clean.csv
+
+# Raw survey export: contains participants' IP addresses, never committed
+survey/results-survey*.csv
