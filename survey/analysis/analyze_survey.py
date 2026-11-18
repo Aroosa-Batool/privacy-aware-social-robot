@@ -59,7 +59,7 @@ RANK_OPTS = {
 }
 MRANK_OPTS = ["Microphone only", "Camera only", "Microphone first, then camera"]
 
-# Measure definitions (hypotheses sheet). key -> (label, items, reverse items, kind)
+# Measure definitions. key -> (label, items, reverse items, kind)
 MDMT_PERF = [f"MDMT[{d}{i}]" for d in ("REL", "CAP") for i in range(1, 5)]
 MDMT_MORAL = [f"MDMT[{d}{i}]" for d in ("ETH", "SIN", "BEN") for i in range(1, 5)]
 SCALES = {
@@ -95,8 +95,8 @@ SHORT = {
     "int": "Intention to use",
 }
 
-# Main comparisons of the study, by research question. The study is framed by open questions
-# (no directional hypotheses), so every test is two-sided.
+# Main comparisons of the study, by research question. The study asks open questions,
+# so every test is two-sided.
 PRIMARY = [
     ("RQ2", "privacy"),
     ("RQ2, RQ3", "acc"),

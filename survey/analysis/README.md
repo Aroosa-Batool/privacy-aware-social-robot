@@ -12,44 +12,45 @@ and writes everything to `survey/analysis/out/` (git-ignored: it contains free t
 Re-run unchanged on a newer export; new free-text answers are listed as UNCODED in
 `out/report.md` until they are added to `codebook.csv`.
 
-## Analysis decisions
+## The study
 
-Fixed before the outcomes were inspected (approved 2026-11-14):
+One online vignette survey (LimeSurvey 841423), open from 10 to 18 November 2026. **34 participants**
+submitted it; these 34 responses are the data set of the thesis. Each participant rated three
+policies for a private reminder that becomes due while a visitor is present: A = disclose without
+asking, B = ask every time, C = ask once and remember.
+
+## Analysis
 
 - **Sample:** submitted responses only. Partial responses appear only in the flow table. The incomplete
   records were deleted after the final export; `participant_flow.csv` keeps the counts of the
   full export (numbers only) and is used for the flow table when the export contains no
   incomplete records. All other outputs are the same with or without the incomplete records.
+- **Questions:** the study asks open questions (Q2.1-Q3.4 in the thesis), so every pairwise test is
+  two-sided.
+- **Main comparisons:** privacy awareness, acceptability, control and UEQ-S pragmatic quality, each
+  compared for all three pairs (B - A, C - A, C - B) and Holm-adjusted across the three pairs of a
+  measure (`out/primary.*`, `out/primary_all_rules.csv`, `out/primary_robustness.*`).
 - **Manipulation checks, primary rule:** a participant enters a paired comparison only if they passed
   the checks of both scenarios in it. Sensitivity: no exclusion; strict (all three passed).
-- **Speeders:** flagged if total time < median/3; not excluded (none flagged on 18 Nov).
+- **Speeders:** flagged if total time < median/3; not excluded (none flagged).
 - **Scoring:** scale means need all items. ACC, CTL and INT have six options scored 1, 2, 3, 5, 6, 7.
+  UEQ-S scores are reported from 1 to 7 as answered (official UEQ-S score = value - 4), so that all
+  figures and tables share one axis.
 - **Tests:** Wilcoxon signed-rank (Pratt zero handling); matched-pairs rank-biserial r (zeros dropped);
   median paired difference with 95 % percentile bootstrap CI (10 000 resamples, seed 20261114). alpha = .05.
 - **Robustness:** paired t; linear mixed model score ~ scenario + position + (1 | participant).
   No CLMM: R is not available and statsmodels' ordinal model has no random effects.
-- **Other analyses:** Friedman + Holm-corrected pairwise Wilcoxon; order effects (Kruskal-Wallis by
-  position, unadjusted); RANK/MRANK; INFOSENS correlations; free-text coding (single coder, inductive,
-  `codebook_definitions.csv` + `codebook.csv`).
-
-Changed after a first analysis of 24 responses (export of 15 Nov 2026), on the supervisor's request
-(2026-11-18). The thesis states these changes in Sections 5.6 and 5.7 and in the limitations:
-
-- **Questions instead of hypotheses.** The four directional hypotheses (H1-H4, one-sided tests) were
-  dropped. The four main measures (privacy awareness, acceptability, control, UEQ-S pragmatic quality)
-  are each compared for all three pairs (B - A, C - A, C - B) with **two-sided** tests, Holm-adjusted
-  across the three pairs of a measure (`out/primary.*`, `out/primary_all_rules.csv`,
-  `out/primary_robustness.*`). The remaining measures keep the Friedman + pairwise analysis
-  (`out/exploratory_friedman.*`; the file name is kept from the first version).
-- **UEQ-S on the answer scale.** UEQ-S scores are reported from 1 to 7 as answered (official
-  UEQ-S score = value - 4), so that all figures and tables share one axis.
-- **Figures.** Box plots on a common axis from 0 to 7 (`fig_primary.pdf`, `fig_secondary.pdf`, slide
+- **Remaining measures:** Friedman + Holm-corrected pairwise Wilcoxon (`out/exploratory_friedman.*`),
+  repeated as a sensitivity analysis with the ratings of every failed-check scenario set to missing
+  (`out/exploratory_friedman_checks.*`).
+- **Other analyses:** order effects (Kruskal-Wallis by position, unadjusted); RANK/MRANK;
+  INFOSENS correlations; free-text coding (single coder, inductive, `codebook_definitions.csv` +
+  `codebook.csv`).
+- **Figures:** box plots on a common axis from 0 to 7 (`fig_primary.pdf`, `fig_secondary.pdf`, slide
   variants `fig_slide_*.pdf`). In `fig_rankings.pdf` the options are ordered by the number of first
   ranks (then second ranks), most preferred at the top.
-- **Sensitivity only (added 2026-11-14):** Friedman and pairwise tests repeated with the ratings of
-  every failed-check scenario set to missing (`out/exploratory_friedman_checks.*`).
 
-## Results summary (final export of 2026-11-18, N = 34 completers)
+## Results summary (N = 34)
 
 Power: with 34 pairs a two-sided test at alpha = .05 has 80 % power for d_z >= 0.50
 (26 pairs: d_z >= 0.57).
