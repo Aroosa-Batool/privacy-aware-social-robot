@@ -7,9 +7,8 @@ Run from the repository root:
 
 Reads the raw LimeSurvey CSV export ("code. question text" headers, answers as text),
 drops every IP-address column on load, and writes tidy data, CSV + LaTeX (booktabs)
-tables and PDF figures to survey/analysis/out/. No network access. The analysis plan
-(exclusion rules, tests, families) was fixed before outcomes were inspected; see the
-docstrings below and survey/analysis/README.md.
+tables and PDF figures to survey/analysis/out/. No network access. The reporting focus was revised on 19 November 2026 after data inspection: Only MDMT v2, UEQ-S and PSI Social Competence enter scored inferential analyses.
+Other questionnaire items are described individually, without composite scores or tests.
 """
 
 from __future__ import annotations
@@ -63,15 +62,9 @@ MRANK_OPTS = ["Microphone only", "Camera only", "Microphone first, then camera"]
 MDMT_PERF = [f"MDMT[{d}{i}]" for d in ("REL", "CAP") for i in range(1, 5)]
 MDMT_MORAL = [f"MDMT[{d}{i}]" for d in ("ETH", "SIN", "BEN") for i in range(1, 5)]
 SCALES = {
-    "privacy": (
-        "Privacy awareness",
-        ["PS[PRAW1]", "PS[PRAW2]", "PS[PRAW5]"],
-        ["PS[PRAW1]"],
-        "agree",
-    ),
-    "soccomp": ("Social competence", [f"SOC[SOC{i}]" for i in range(1, 5)], ["SOC[SOC3]"], "agree"),
-    "trust_perf": ("Performance trust (MDMT)", MDMT_PERF, [], "mdmt"),
-    "trust_moral": ("Moral trust (MDMT)", MDMT_MORAL, [], "mdmt"),
+    "soccomp": ("PSI social competence", [f"SOC[SOC{i}]" for i in range(1, 5)], ["SOC[SOC3]"], "agree"),
+    "trust_perf": ("Performance trust (MDMT v2)", MDMT_PERF, [], "mdmt"),
+    "trust_moral": ("Moral trust (MDMT v2)", MDMT_MORAL, [], "mdmt"),
     "ueq_prag": ("UEQ-S pragmatic quality", [f"UEQ[UEQ{i}]" for i in range(1, 5)], [], "ueq"),
     "ueq_hed": ("UEQ-S hedonic quality", [f"UEQ[UEQ{i}]" for i in range(5, 9)], [], "ueq"),
 }
@@ -95,16 +88,20 @@ SHORT = {
     "int": "Intention to use",
 }
 
-# Main comparisons of the study, by research question. The study asks open questions,
-# so every test is two-sided.
-PRIMARY = [
-    ("RQ2", "privacy"),
-    ("RQ2, RQ3", "acc"),
-    ("RQ3", "ctl"),
-    ("RQ3", "ueq_prag"),
-]
-PAIRS = (("B", "A"), ("C", "A"), ("C", "B"))  # reported as first minus second
-SECONDARY = ["trust_perf", "trust_moral", "soccomp", "saw", "int", "ueq_hed"]
+# Reporting focus revised after data inspection on 2026-11-19; exploratory, not preregistered.
+HRI_MEASURES = ["trust_perf", "trust_moral", "soccomp", "ueq_prag", "ueq_hed"]
+PRIMARY = [("RQ2, RQ3", m) for m in HRI_MEASURES]
+PAIRS = (("B", "A"), ("C", "A"), ("C", "B"))
+SECONDARY = []
+CONTEXT_ITEMS = {
+    "privacy_violation": ("Ohbot violated my privacy", "PS[PRAW1]"),
+    "privacy_boundaries": ("Ohbot understands privacy boundaries", "PS[PRAW2]"),
+    "privacy_aware": ("Ohbot's behaviour was privacy-aware", "PS[PRAW5]"),
+    "acc": ("Ohbot's way of handling my permission is acceptable to me", "CON[ACC]"),
+    "ctl": ("I felt in control of what Ohbot said in front of Jordan", "CON[CTL]"),
+    "int": ("I would use a robot that works this way", "CON[INT]"),
+    "saw": ("Ohbot behaved appropriately in the social situation", "PS[SAW1]"),
+}
 COLORS = {"A": "#2a78d6", "B": "#eb6834", "C": "#1baf7a"}  # dataviz default slots 1-3
 INK, INK2 = "#0b0b0b", "#52514e"
 
@@ -120,7 +117,7 @@ def load(path: Path) -> pd.DataFrame:
             texts = [c.strip() for c in next(csv.reader(f, skipinitialspace=True))]
         if texts != [t.strip() for t in known["text"]]:
             raise SystemExit("export columns do not match export_columns.csv")
-        raw.columns = [f"{c}. {t}" for c, t in zip(known["code"], texts, strict=True)]
+        raw.columns = [f"{c}. {t}" for c, t in zip(known["code"], texts)]
     raw = raw.drop(columns=[c for c in raw.columns if c.lower().startswith("ipaddr")])
     raw.columns = [c.split(". ", 1)[0].strip() for c in raw.columns]
     df = raw.apply(lambda s: s.str.strip()).replace("", np.nan)
@@ -142,10 +139,8 @@ def code(val, kind: str):
     ):  # "0 Not at all" ... "7 Very"; INFOSENS "7 Extremely sensitive"
         return float(str(val).split()[0])
     if kind == "ueq":
-        # 1..7 as answered, positive word on the right, 4 = neutral. The official UEQ-S score
-        # is this value minus 4 (-3..+3); the answer scale is kept so that all measures point
-        # the same way and share one axis.
-        return float(val)
+        # Standard UEQ-S scoring: positive word on right; neutral = 0.
+        return float(val) - 4
     raise ValueError(kind)
 
 
@@ -172,7 +167,7 @@ def score(df: pd.DataFrame) -> pd.DataFrame:
                     vals.append(v)
                 # scale mean requires all items (complete-case per scale)
                 rec[key] = np.mean(vals) if not np.any(np.isnan(vals)) else np.nan
-            for key, (_, it) in SINGLE.items():
+            for key, (_, it) in CONTEXT_ITEMS.items():
                 rec[key] = code(r.get(pre + it), "agree")
             rec["open"] = r.get(pre + "OPEN")
             rows.append(rec)
@@ -206,15 +201,9 @@ def paired(wide: pd.DataFrame, hi: str, lo: str, alternative: str) -> dict:
     # the last bits and would be ranked as unequal. Rounding keeps theoretical ties tied.
     d = np.round(x - y, 9)
     nz = d[d != 0]
-    # How SciPy's method="auto" resolves the p value (SciPy 1.18): exact without ties or zeros
-    # for n <= 50; with ties or zeros, exhaustive permutation for n <= 13, otherwise the normal
-    # approximation with tie and zero correction (no continuity correction).
-    if len(np.unique(np.abs(nz))) == len(nz) == len(d) and len(d) <= 50:
-        p_method = "exact"
-    elif len(d) <= 13:
-        p_method = "permutation"
-    else:
-        p_method = "normal approximation"
+    # All current comparisons have n > 13 and tied/zero differences. Explicitly
+    # use the normal approximation for consistency across SciPy versions.
+    p_method = "normal approximation"
     out = {
         "n": len(d),
         "p_method": p_method,
@@ -241,7 +230,7 @@ def paired(wide: pd.DataFrame, hi: str, lo: str, alternative: str) -> dict:
         }
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        w = stats.wilcoxon(d, zero_method="pratt", alternative=alternative)
+        w = stats.wilcoxon(d, zero_method="pratt", alternative=alternative, method="approx")
         t = stats.ttest_rel(x, y, alternative=alternative)
     lo_ci, hi_ci = boot_ci(d)
     sd = d.std(ddof=1)
@@ -432,7 +421,15 @@ def main(csv: Path) -> None:
             )
         flow = rec
     save(flow, "flow", "Participant flow from started to analysed responses.", "tab:study-flow")
+    import platform, scipy, statsmodels, matplotlib
+    environment = {"python": platform.python_version(), "numpy": np.__version__,
+                   "pandas": pd.__version__, "scipy": scipy.__version__,
+                   "statsmodels": statsmodels.__version__, "matplotlib": matplotlib.__version__}
+    import json
+    (OUT / "environment.json").write_text(json.dumps(environment, indent=2) + "\n")
     say("# Survey analysis report")
+    say("Instrument-based analysis: MDMT v2, UEQ-S and PSI Social Competence; other questions descriptive.")
+    say("Environment: " + str(environment))
     say(f"Export: {csv.name}; rows: {len(df)}; submitted: {n}")
     say("lastpage: " + str(df["lastpage"].value_counts(dropna=False).sort_index().to_dict()))
     say(flow.to_string(index=False))
@@ -540,7 +537,7 @@ def main(csv: Path) -> None:
     say("\n## Reliability\n" + rel.to_string(index=False))
 
     # ---- descriptives per scenario
-    measures = [*SCALES, *SINGLE]
+    measures = HRI_MEASURES
     desc_rows = []
     for m in measures:
         row = [LABEL[m]]
@@ -558,7 +555,7 @@ def main(csv: Path) -> None:
         "Scores per scenario: median [IQR]; mean (SD), completers.",
         "tab:study-descriptives",
         colspec="lp{3.6cm}p{3.6cm}p{3.6cm}",
-        note="Ranges: agreement items and scales 1--7; UEQ-S 1--7 (4 = neutral); MDMT 0--7.",
+        note="Ranges: PSI Social Competence 1--7 (adapted response format); UEQ-S -3 to +3 (0 = neutral); MDMT 0--7.",
     )
     say("\n## Descriptives (median [IQR]; mean (SD))\n" + desc.to_string(index=False))
 
@@ -587,7 +584,7 @@ def main(csv: Path) -> None:
             dmin = pw.solve_power(nobs=nn, alpha=ALPHA, power=0.8, alternative="two-sided")
             say(
                 f"Power: n = {nn} pairs, two-sided alpha .05, 80% power -> d_z >= {dmin:.2f} "
-                f"(Wilcoxon ARE .955 -> ~{dmin / np.sqrt(0.955):.2f})"
+                "(paired-t sensitivity benchmark only; not Wilcoxon power)"
             )
     except Exception:
         pass
@@ -605,7 +602,7 @@ def main(csv: Path) -> None:
                 }
                 for a, b in PAIRS
             ]
-            for r, ph in zip(res, holm([r["p"] for r in res]), strict=True):
+            for r, ph in zip(res, holm([r["p"] for r in res])):
                 r["p_holm"] = ph
             conf_rows += res
     conf = pd.DataFrame(conf_rows)
@@ -616,6 +613,10 @@ def main(csv: Path) -> None:
             conf.loc[
                 (conf.measure == m) & (conf.comparison == f"{a} - {b}"), ["lmm_b", "lmm_p"]
             ] = [coef[0], coef[2]]
+    conf["p_holm_family"] = np.nan
+    for rule in conf.rule.unique():
+        mask = conf.rule == rule
+        conf.loc[mask, "p_holm_family"] = holm(conf.loc[mask, "p"].tolist())
     conf.to_csv(OUT / "primary_all_rules.csv", index=False)
 
     prim = conf[conf.rule == "per_comparison"]
@@ -627,14 +628,15 @@ def main(csv: Path) -> None:
             "n": prim.n,
             "Mdn diff [95% CI]": [
                 f"{a:.2f} [{b:.2f}, {c:.2f}]"
-                for a, b, c in zip(prim.median_diff, prim.ci_lo, prim.ci_hi, strict=False)
+                for a, b, c in zip(prim.median_diff, prim.ci_lo, prim.ci_hi)
             ],
             "+/0/-": [
-                f"{a}/{b}/{c}" for a, b, c in zip(prim.n_pos, prim.n_zero, prim.n_neg, strict=False)
+                f"{a}/{b}/{c}" for a, b, c in zip(prim.n_pos, prim.n_zero, prim.n_neg)
             ],
             "W": prim.W.map(lambda x: f2(x, 1)),
             "p": prim.p.map(fmt_p),
             "p Holm": prim.p_holm.map(fmt_p),
+            "p family": prim.p_holm_family.map(fmt_p),
             "r_rb": prim.r_rb.map(f2),
             "dz": prim.dz.map(f2),
         }
@@ -642,13 +644,13 @@ def main(csv: Path) -> None:
     save(
         tab,
         "primary",
-        "Main comparisons (two-sided Wilcoxon signed-rank tests, Pratt zero handling; "
+        "Exploratory HRI comparisons (two-sided Wilcoxon signed-rank tests, Pratt zero handling; "
         "per-comparison exclusion).",
         "tab:study-primary",
-        colspec="lllrlrrrrrr",
+        colspec="lllrlrrrrrrr",
         note=r"Mdn diff = median of paired differences (first $-$ second) with 95\% percentile "
         r"bootstrap CI. +/0/$-$ = number of positive, zero and negative differences. $W$ = smaller "
-        r"rank sum. Holm correction across the three pairs of a measure. "
+        r"rank sum. Holm correction across three pairs per score; p family corrects all 15 instrument-based comparisons. "
         r"$r_{rb}$ = matched-pairs rank-biserial correlation.",
     )
     rob_tab = []
@@ -689,59 +691,27 @@ def main(csv: Path) -> None:
         r"(score $\sim$ scenario + position + (1 $|$ participant)) on all completers; $b$ is the "
         r"scenario contrast.",
     )
-    say("\n## Main comparisons (primary rule, two-sided)\n" + tab.to_string(index=False))
+    say("\n## Exploratory HRI comparisons (per-comparison rule, two-sided)\n" + tab.to_string(index=False))
     say("\n## Robustness\n" + rob_tab.to_string(index=False))
 
-    # ---- scoring sensitivity of the control item: CTL has no midpoint (codes 1-3, 5-7). "Equal
-    # spacing" closes the gap (5, 6, 7 -> 4, 5, 6); the sign test uses only the direction of each
-    # difference.
-    h3_rows = []
-    for rule in ("per_comparison", "none"):
-        w = wide_for("ctl", rule, "B", "C")[["B", "C"]].dropna()
-        for scoring, ww in (("original", w), ("equal spacing", w.replace({5: 4, 6: 5, 7: 6}))):
-            r = paired(ww, "C", "B", "two-sided")
-            h3_rows.append(
-                {
-                    "rule": rule,
-                    "test": f"Wilcoxon, {scoring}",
-                    "n": r["n"],
-                    "W": r["W"],
-                    "p": r["p"],
-                }
-            )
-        d = (w["B"] - w["C"]).to_numpy(float)
-        k, n_nz = int((d > 0).sum()), int((d != 0).sum())
-        h3_rows.append(
-            {
-                "rule": rule,
-                "test": f"Sign test ({k} of {n_nz} non-zero differences favour B)",
-                "n": len(d),
-                "W": np.nan,
-                "p": float(stats.binomtest(k, n_nz, alternative="two-sided").pvalue),
-            }
-        )
-    h3 = pd.DataFrame(h3_rows)
-    save(
-        pd.DataFrame(
-            {
-                "Exclusion": h3.rule.map({"per_comparison": "Primary", "none": "None"}),
-                "Test": h3.test,
-                "n": h3.n,
-                "W": h3.W.map(lambda x: f2(x, 1)),
-                "p": h3.p.map(fmt_p),
-            }
-        ),
-        "control_scoring",
-        "Sensitivity of the control comparison (C $-$ B) to the scoring of the control item.",
-        "tab:study-control-scoring",
-        colspec="llrrr",
-        note=r"Two-sided tests. Equal spacing scores the answers without a midpoint as 1 to 6.",
-    )
-    say("\n## Control item: scoring sensitivity (two-sided)\n" + h3.to_string(index=False))
+    # ---- contextual items: counts only, in original wording and response categories.
+    # Privacy and study-specific judgements are individual response counts only; no composite or inferential analysis.
+    context_rows = []
+    inverse = {v: k for k, v in AGREE7.items()}
+    for key, (label, _) in CONTEXT_ITEMS.items():
+        for scenario in "ABC":
+            v = long.loc[long.scenario == scenario, key]
+            options = [1, 2, 3, 5, 6, 7] if key in ("acc", "ctl", "int") else list(range(1, 8))
+            for option in options:
+                context_rows.append([key, label, scenario, inverse[option], int((v == option).sum()), int(v.notna().sum())])
+            context_rows.append([key, label, scenario, "Missing", int(v.isna().sum()), len(v)])
+    context = pd.DataFrame(context_rows, columns=["item", "wording", "scenario", "response", "count", "denominator"])
+    context.to_csv(OUT / "context_response_counts.csv", index=False)
+    say("\n## Contextual questionnaire responses (counts only; no composite scores or tests)\n" + context.to_string(index=False))
 
     # ---- exploratory: Friedman + pairwise (no check exclusions; all completers with 3 scores)
     fr_rows = []
-    for m in SECONDARY + ["privacy", "acc", "ctl", "ueq_prag"]:
+    for m in HRI_MEASURES:
         w = long.pivot(index="id", columns="scenario", values=m).dropna()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -755,7 +725,7 @@ def main(csv: Path) -> None:
             [LABEL[m], len(w), f2(fr.statistic), fmt_p(fr.pvalue), f2(kw)]
             + [
                 f"{f2(p['median_diff'])}; {fmt_p(q)}; {f2(p['r_rb'])}"
-                for p, q in zip(pair, ph, strict=False)
+                for p, q in zip(pair, ph)
             ]
         )
     fr_tab = pd.DataFrame(
@@ -774,13 +744,13 @@ def main(csv: Path) -> None:
     save(
         fr_tab,
         "exploratory_friedman",
-        "Omnibus (Friedman) and pairwise two-sided Wilcoxon tests for all measures, "
+        "Omnibus (Friedman) and pairwise two-sided Wilcoxon tests for the five instrument-based scores, "
         "all completers with three scores.",
         "tab:study-exploratory",
         colspec="lrrrrlll",
         note="Pairwise cells: median paired difference; Holm-adjusted $p$ across the three pairs; "
         "rank-biserial $r$. "
-        "The four main measures are included for completeness; their main comparisons are in "
+        "All five scores are exploratory; the check-filtered comparisons are in "
         "Table~\\ref{tab:study-primary}.",
     )
     say("\n## Exploratory Friedman\n" + fr_tab.to_string(index=False))
@@ -789,7 +759,7 @@ def main(csv: Path) -> None:
     # whose manipulation check was failed are set to missing. Friedman: participants with all three
     # checks passed; pairwise: participants who passed both checks of the pair.
     fs_rows = []
-    for m in SECONDARY + ["privacy", "acc", "ctl", "ueq_prag"]:
+    for m in HRI_MEASURES:
         wm = long.pivot(index="id", columns="scenario", values=m).where(chk == True)  # noqa: E712
         w3 = wm.dropna()
         with warnings.catch_warnings():
@@ -807,7 +777,7 @@ def main(csv: Path) -> None:
             ]
             + [
                 f"{f2(p['median_diff'])}; {fmt_p(q)}; {f2(p['r_rb'])} ({p['n']})"
-                for p, q in zip(pair, ph, strict=False)
+                for p, q in zip(pair, ph)
             ]
         )
     fs_tab = pd.DataFrame(
@@ -842,7 +812,7 @@ def main(csv: Path) -> None:
 
     # ---- order effects
     ord_rows = []
-    for m in ["privacy", "acc", "ctl", "ueq_prag", "int"]:
+    for m in HRI_MEASURES:
         for s in "ABC":
             g = long[long.scenario == s].dropna(subset=[m, "position"])
             grp = [g.loc[g.position == k, m].to_numpy() for k in (1, 2, 3)]
@@ -876,23 +846,11 @@ def main(csv: Path) -> None:
         colspec="llllll",
     )
     say("\n## Order effects\n" + ord_tab.to_string(index=False))
-    # first-position only (between-subjects, free of carry-over)
-    first = long[long.position == 1]
-    say(
-        "First-seen scenario only (between-subjects): "
-        + ", ".join(
-            f"{s}: n={len(first[first.scenario == s])}, ACC "
-            f"Mdn={first.loc[first.scenario == s, 'acc'].median()}, "
-            f"privacy Mdn={first.loc[first.scenario == s, 'privacy'].median():.2f}"
-            for s in "ABC"
-        )
-    )
-
     # ---- rankings
     def rank_table(cols, opts):
         rk = pd.DataFrame(index=comp["id"], columns=opts, dtype=float)
         for k, c in enumerate(cols, start=1):
-            for pid, v in zip(comp["id"], comp[c], strict=False):
+            for pid, v in zip(comp["id"], comp[c]):
                 if pd.notna(v):
                     rk.loc[pid, v] = k
         return rk
@@ -904,89 +862,34 @@ def main(csv: Path) -> None:
     rk_rows = []
     for nm, rk in (("Handling", rank), ("Sensing", mrank)):
         rkc = rk.dropna()
-        fr = stats.friedmanchisquare(*[rkc[c] for c in rkc.columns])
-        say(
-            f"\n## Ranking {nm}: n={len(rkc)}, Friedman "
-            f"chi2({rkc.shape[1] - 1})={fr.statistic:.2f}, "
-            f"p={fmt_p(fr.pvalue)}, W={fr.statistic / (len(rkc) * (rkc.shape[1] - 1)):.2f}"
-        )
         for c in rank_order(rk):
             rk_rows.append(
-                [nm, c, int((rk[c] == 1).sum()), f2(rk[c].mean()), f2(rk[c].median(), 1)]
+                [nm, c, int((rk[c] == 1).sum())]
             )
-        rk_rows.append(
-            [
-                nm,
-                f"Friedman chi2({rkc.shape[1] - 1}) = {fr.statistic:.2f}, p = {fmt_p(fr.pvalue)}, "
-                f"n = {len(rkc)}",
-                "",
-                "",
-                "",
-            ]
-        )
     rk_tab = pd.DataFrame(
-        rk_rows, columns=["Ranking", "Option", "Ranked first", "Mean rank", "Median rank"]
+        rk_rows, columns=["Ranking", "Option", "Ranked first"]
     )
     save(
         rk_tab,
         "rankings",
         "Preferred handling of private reminders (RANK) and preferred sensing (MRANK).",
         "tab:study-rankings",
-        colspec="llrrr",
+        colspec="llr",
         note="Rank 1 = most preferred.",
     )
     say(rk_tab.to_string(index=False))
-    # pairwise among handling options (exploratory)
-    rkc = rank.dropna()
-    cols = list(rkc.columns)
-    pw_rows = []
-    for i in range(len(cols)):
-        for j in range(i + 1, len(cols)):
-            r = paired(rkc, cols[i], cols[j], "two-sided")
-            pw_rows.append((cols[i], cols[j], r["mean_diff"], r["p"]))
-    adj = holm([x[3] for x in pw_rows])
-    say(
-        "Pairwise RANK (mean rank diff i-j; Holm p): "
-        + "; ".join(
-            f"{a} vs {b}: {d:+.2f}, p={fmt_p(p)}"
-            for (a, b, d, _), p in zip(pw_rows, adj, strict=False)
-        )
-    )
-    say("RANK = position of each option per participant:\n" + rank.astype("Int64").to_string())
-
-    # ---- INFOSENS
+    # Sensitivity is contextual; retain its response frequencies without correlations.
     inf = comp.set_index("id")["INFOSENS[REM]"].map(lambda v: code(v, "infosens"))
-    say(
-        f"\n## INFOSENS: n={inf.notna().sum()}, median={inf.median()}, mean={inf.mean():.2f}, "
-        f"dist={inf.value_counts().sort_index().to_dict()}"
-    )
-    inf_rows = []
-    for m in ("privacy", "acc"):
-        w = long.pivot(index="id", columns="scenario", values=m)
-        for hi in ("B", "C"):
-            # round like paired(): mathematically equal differences of means must tie exactly
-            dd = (w[hi] - w["A"]).round(9).rename("d").to_frame().join(inf.rename("s")).dropna()
-            rho = stats.spearmanr(dd.s, dd.d)
-            inf_rows.append([LABEL[m], f"{hi} - A", len(dd), f2(rho.statistic), fmt_p(rho.pvalue)])
-    inf_tab = pd.DataFrame(inf_rows, columns=["Measure", "Difference", "n", "Spearman rho", "p"])
-    save(
-        inf_tab,
-        "infosens",
-        "Association between rated sensitivity of the reminder and the advantage of B/C over A "
-        "(exploratory, unadjusted).",
-        "tab:study-infosens",
-        colspec="llrrr",
-    )
-    say(inf_tab.to_string(index=False))
+    inf.value_counts().sort_index().rename_axis("response").reset_index(name="count").to_csv(OUT / "sensitivity_counts.csv", index=False)
 
     # ---- free text export (for coding; stays in out/, which is git-ignored)
     ft = []
     for pre, sc in SCEN.items():
-        for pid, v in zip(comp["id"], comp[pre + "OPEN"], strict=False):
+        for pid, v in zip(comp["id"], comp[pre + "OPEN"]):
             if pd.notna(v):
                 ft.append((pid, f"OPEN_{sc}", v))
     for col in ("MOTHER", "FINAL"):
-        for pid, v in zip(comp["id"], comp[col], strict=False):
+        for pid, v in zip(comp["id"], comp[col]):
             if pd.notna(v):
                 ft.append((pid, col, v))
     ft = pd.DataFrame(ft, columns=["id", "field", "text"])
@@ -994,7 +897,7 @@ def main(csv: Path) -> None:
     code_free_text(ft, say)
 
     # ---- figures
-    figures(long, rank, mrank, inf)
+    figures(long, rank, mrank, inf, conf)
 
     (OUT / "report.md").write_text("\n".join(report) + "\n", encoding="utf-8")
     print("\n".join(report))
@@ -1099,7 +1002,8 @@ def agreement(cb: pd.DataFrame, codes: set[str], say) -> None:
     say(tab.to_string(index=False))
 
 
-def figures(long: pd.DataFrame, rank: pd.DataFrame, mrank: pd.DataFrame, inf: pd.Series) -> None:
+def figures(long: pd.DataFrame, rank: pd.DataFrame, mrank: pd.DataFrame, inf: pd.Series,
+            comparisons: pd.DataFrame) -> None:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -1118,107 +1022,113 @@ def figures(long: pd.DataFrame, rank: pd.DataFrame, mrank: pd.DataFrame, inf: pd
             "pdf.fonttype": 42,
         }
     )
-    ylim, yticks = (-0.3, 7.3), range(0, 8)  # one axis for every panel (MDMT starts at 0)
+    primary = comparisons[comparisons.rule == "per_comparison"]
 
-    def panel(ax, m):
+    def panel(ax, m, annotate=False):
         w = long.pivot(index="id", columns="scenario", values=m).dropna()
-        bp = ax.boxplot(
-            [w[s] for s in "ABC"],
-            positions=range(3),
-            widths=0.56,
-            patch_artist=True,
-            medianprops={"color": INK, "lw": 2, "solid_capstyle": "butt"},
-            whiskerprops={"color": INK2, "lw": 0.9},
-            capprops={"color": INK2, "lw": 0.9},
-            boxprops={"edgecolor": INK2, "lw": 0.9},
-            flierprops={"marker": "o", "markersize": 3.2, "markeredgewidth": 0.6},
-        )
-        for box, flier, s in zip(bp["boxes"], bp["fliers"], "ABC", strict=True):
-            box.set_facecolor(COLORS[s])
-            flier.set(markerfacecolor=COLORS[s], markeredgecolor=INK2)
-        ax.set_xticks(range(3), ["A", "B", "C"])
-        ax.set_ylim(*ylim)
-        ax.set_yticks(yticks)
-        ax.yaxis.grid(True, color="#e8e7e2", lw=0.5)
+        bp = ax.boxplot([w[sc].to_numpy() for sc in "ABC"], positions=range(3),
+                        widths=.54, patch_artist=True, showfliers=True,
+                        medianprops={"color": INK, "lw": 1.4},
+                        boxprops={"edgecolor": INK2, "lw": .8},
+                        whiskerprops={"color": INK2, "lw": .8},
+                        capprops={"color": INK2, "lw": .8},
+                        flierprops={"marker": "d", "markersize": 3,
+                                    "markerfacecolor": INK2, "markeredgecolor": INK2})
+        for box, sc in zip(bp["boxes"], "ABC"):
+            box.set_facecolor(COLORS[sc]); box.set_alpha(.88)
+        if m.startswith("ueq"):
+            ax.set_ylim(-3.25, 3.25); ax.set_yticks(range(-3, 4))
+            ax.axhline(0, color=INK2, ls="--", lw=.65)
+            ylabel = "UEQ-S score (-3 to +3)"
+        elif m.startswith("trust"):
+            ax.set_ylim(-.25, 7.25); ax.set_yticks(range(8)); ylabel = "MDMT v2 score (0 to 7)"
+        elif m == "privacy":
+            ax.set_ylim(.75, 7.25); ax.set_yticks(range(1, 8)); ylabel = "Privacy awareness score (1 to 7)"
+        else:
+            ax.set_ylim(.75, 7.25); ax.set_yticks(range(1, 8)); ylabel = "PSI score (adapted 1 to 7)"
+        ylabel = {
+            "trust_perf": "Performance trust score",
+            "trust_moral": "Moral trust score",
+            "soccomp": "Social competence score",
+            "ueq_prag": "Pragmatic quality score",
+            "ueq_hed": "Hedonic quality score",
+        }[m]
+        ax.set_ylabel(ylabel, fontsize=9)
+        labels = (["A", "B", "C"] if annotate else
+                  ["A\nDisclose without\nasking", "B\nAsk every\ntime", "C\nAsk once and\nremember"])
+        ax.set_xticks(range(3), labels, fontsize=8)
         ax.set_axisbelow(True)
-        ax.set_title(f"{SHORT[m]}\n(n = {len(w)})", fontsize=9, color=INK, loc="left")
+        names = {"trust_perf": "Performance trust (MDMT v2)",
+                 "trust_moral": "Moral trust (MDMT v2)",
+                 "soccomp": "Social competence (PSI)",
+                 "ueq_prag": "Pragmatic quality (UEQ-S)",
+                 "ueq_hed": "Hedonic quality (UEQ-S)"}
+        title = names[m].replace(" (", "\n(") if annotate else names[m]
+        ax.set_title(title + f"\nDistributions: N = {len(w)}",
+                     fontsize=9, pad=67 if annotate else 9)
+        if annotate:
+            # Axes-fraction heights leave the score axis on its original range.
+            for level, (pair, left, right) in enumerate(
+                    [("B - A", 0, 1), ("C - B", 1, 2), ("C - A", 0, 2)]):
+                row = primary[(primary.measure == m) & (primary.comparison == pair)].iloc[0]
+                y = 1.035 + level * .12
+                trans = ax.get_xaxis_transform()
+                ax.plot([left, left, right, right], [y-.015, y, y, y-.015],
+                        color=INK2, lw=.65, transform=trans, clip_on=False)
+                p = float(row.p_holm_family)
+                pv = "< .001" if p < .001 else f"= {p:.3f}".replace("= 0.", "= .")
+                ax.text((left+right)/2, y+.013,
+                        rf"$p_{{15}}$ {pv}; n = {int(row.n)}",
+                        ha="center", va="bottom", fontsize=8,
+                        transform=trans, clip_on=False)
 
-    def grid(ms, name, ncol=None, legend=True):
-        text = (
-            "A = disclose without asking, B = ask every time, C = ask once and remember\n"
-            "box = middle half of the ratings, thick line = median,\n"
-            "whiskers = most extreme rating within 1.5 box lengths, dots = ratings beyond"
-        )
-        nc = ncol or len(ms)
-        nrow = -(-len(ms) // nc)
-        fig, axes = plt.subplots(
-            nrow,
-            nc,
-            figsize=((1.6 if nrow == 1 else 1.95) * nc + 0.3, 2.5 * nrow + 0.3),
-            constrained_layout=True,
-            sharey=True,
-        )
+    def grid(ms, name, ncol=None, legend=False, annotate=False):
+        nc = ncol or len(ms); nr = -(-len(ms) // nc)
+        panel_width = 2.3 if annotate and nc == 3 else 3.05
+        fig, axes = plt.subplots(nr, nc, figsize=(panel_width * nc, (4.25 if annotate else 3.55) * nr),
+                                 constrained_layout=True)
         axes = np.atleast_1d(axes).ravel()
-        for ax, m in zip(axes, ms, strict=False):
-            panel(ax, m)
-            ax.tick_params(labelleft=True)
-        for ax in axes[len(ms) :]:
-            ax.axis("off")
+        for ax, m in zip(axes, ms): panel(ax, m, annotate)
+        for ax in axes[len(ms):]: ax.axis("off")
         if legend:
-            fig.supxlabel(text, fontsize=7, color=INK2)
-        fig.savefig(OUT / f"{name}.pdf")
+            fig.supxlabel("Boxes = interquartile range; centre line = median.\n"
+                          "Whiskers = observations within 1.5 IQR; diamonds = outliers.\n"
+                          "All 34 completers; axes retain each measure's scoring range.", fontsize=8)
+        for ext in ("pdf", "png", "svg"):
+            fig.savefig(OUT / f"{name}.{ext}", dpi=220)
         plt.close(fig)
 
-    grid(["privacy", "acc", "ctl", "ueq_prag"], "fig_primary")
-    grid(["trust_perf", "trust_moral", "soccomp", "saw", "int", "ueq_hed"], "fig_secondary", ncol=3)
-    # the same panels in smaller groups, for the slides (the legend is on the slide itself)
-    grid(["privacy", "acc"], "fig_slide_rq2", legend=False)
-    grid(["ctl", "ueq_prag", "acc"], "fig_slide_rq3", legend=False)
-    grid(
-        ["trust_perf", "trust_moral", "soccomp", "saw", "int", "ueq_hed"],
-        "fig_slide_secondary",
-        ncol=3,
-        legend=False,
-    )
+    grid(HRI_MEASURES, "fig_hri_scales", ncol=3)
+    grid(["trust_perf", "trust_moral", "soccomp"], "fig_primary", annotate=True)
+    grid(["ueq_prag", "ueq_hed"], "fig_secondary", annotate=True)
+    grid(["soccomp"], "fig_psi", legend=False)
+    grid(["trust_perf", "trust_moral"], "fig_slide_rq2", legend=False)
+    grid(["ueq_prag", "ueq_hed"], "fig_slide_rq3", legend=False)
+    grid(["soccomp"], "fig_slide_secondary", legend=False)
 
-    # rankings: share of participants placing each option at each rank (sequential blues)
-    blues = ["#184f95", "#2a78d6", "#5598e7", "#86b6ef"]  # sequential, light end >= 2:1 on white
-    fig, axes = plt.subplots(
-        2, 1, figsize=(6.2, 3.8), constrained_layout=True, gridspec_kw={"height_ratios": [4, 3]}
-    )
-    for ax, rk, title in (
-        (axes[0], rank, "Preferred handling (RANK)"),
-        (axes[1], mrank, "Preferred sensing (MRANK)"),
-    ):
-        rk = rk.dropna()
-        k = rk.shape[1]
-        order = rank_order(rk)  # most preferred first; drawn from the top (inverted axis)
-        left = np.zeros(len(order))
-        for r in range(1, k + 1):
-            vals = np.array([(rk[c] == r).sum() for c in order])
-            ax.barh(
-                range(len(order)),
-                vals,
-                left=left,
-                color=blues[r - 1],
-                edgecolor="#fcfcfb",
-                lw=1,
-                label=f"Rank {r}",
-                height=0.62,
-            )
-            left += vals
-        ax.set_yticks(
-            range(len(order)),
-            [f"{c} ({int((rk[c] == 1).sum())} first, mean {rk[c].mean():.2f})" for c in order],
-        )
-        ax.invert_yaxis()
-        ax.set_xlim(0, len(rk))
-        ax.set_xlabel(f"Participants (n = {len(rk)})")
-        ax.set_title(title, fontsize=9, loc="left", color=INK)
-    handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, ncol=4, fontsize=7.5, frameon=False, loc="outside lower center")
-    fig.savefig(OUT / "fig_rankings.pdf")
+    # Display the already-computed paired differences; no tests are recalculated.
+    fig, axes = plt.subplots(1, 3, figsize=(6.8, 2.7), constrained_layout=True,
+                             gridspec_kw={"width_ratios": [1.3, 1.15, 1.3]})
+    groups = [(["trust_perf", "trust_moral"], ["Performance", "Moral"], "MDMT v2 points"),
+              (["soccomp"], ["Social\ncompetence"], "PSI points (adapted)"),
+              (["ueq_prag", "ueq_hed"], ["Pragmatic", "Hedonic"], "UEQ-S points")]
+    for ax, (measures, labels, unit) in zip(axes, groups):
+        rows = primary[(primary.comparison == "C - B")].set_index("measure").loc[measures]
+        y = np.arange(len(measures))
+        for yy, (_, row) in zip(y, rows.iterrows()):
+            ax.plot([row.ci_lo, row.ci_hi], [yy, yy], color=COLORS["C"], lw=2)
+            ax.plot(row.median_diff, yy, "o", color=INK, ms=5)
+        ax.axvline(0, color=INK2, lw=.8, ls="--")
+        ax.set_yticks(y, labels, fontsize=8)
+        ax.set_ylim(len(measures)-.5, -.65)
+        ax.set_xlim(min(-.25, rows.ci_lo.min()-.2), max(.25, rows.ci_hi.max()+.2))
+        ax.set_xlabel("C minus B (points)", fontsize=9)
+        instrument = "MDMT v2" if measures[0].startswith("trust") else "PSI (adapted)" if measures[0] == "soccomp" else "UEQ-S"
+        ax.set_title(instrument + "\nn = 26 pairs", fontsize=9)
+    for ext in ("pdf", "png", "svg"):
+        fig.savefig(OUT / f"fig_paired_memory.{ext}", dpi=220)
     plt.close(fig)
+
 
 
 if __name__ == "__main__":
