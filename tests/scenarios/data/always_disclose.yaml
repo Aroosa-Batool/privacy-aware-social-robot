@@ -1,0 +1,13 @@
+name: always_disclose
+description: The always-disclose policy speaks sensitive reminders without any checks.
+settings:
+  privacy: {detection_modality: audio_and_camera, disclosure_policy: always_disclose}
+episodes:
+  - reminder: {title: Doctor appointment, due_in_minutes: 10}
+    voices:
+      - {at_s: 0, speaker: stranger_a, seconds: 4}
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, WAIT_FOR_DUE, DISCLOSE_SPEAK, DONE]
+      channel: spoken
+      watch_prompts: 0
+      camera_used: false

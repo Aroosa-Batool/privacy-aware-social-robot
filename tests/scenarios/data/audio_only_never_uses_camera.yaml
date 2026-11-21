@@ -1,0 +1,21 @@
+name: audio_only_never_uses_camera
+description: Microphone-only detection never switches the camera on, even after silence.
+settings:
+  privacy: {detection_modality: audio_only, disclosure_policy: always_ask}
+episodes:
+  - reminder: {title: Doctor appointment, due_in_minutes: 10}
+    faces: {front: [owner], left: [stranger_b]}  # a silent stranger the robot cannot know about
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, LISTENING, NO_BYSTANDER, WAIT_FOR_DUE,
+               DISCLOSE_SPEAK, DONE]
+      channel: spoken
+      camera_used: false
+  - reminder: {title: Doctor appointment, due_in_minutes: 10}
+    voices:
+      - {at_s: 45, speaker: stranger_b, seconds: 4}
+    watch: {answer: "no"}
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, LISTENING, AUDIO_BYSTANDER, CHECK_MEMORY,
+               AWAITING_CONSENT, WAIT_FOR_DUE, DISCLOSE_WATCH, DONE]
+      channel: watch
+      camera_used: false

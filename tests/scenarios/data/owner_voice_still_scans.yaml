@@ -1,0 +1,16 @@
+name: owner_voice_still_scans
+description: Only the owner talks, but a silent stranger sits on the right; the scan still runs.
+settings:
+  privacy: {detection_modality: audio_and_camera, disclosure_policy: always_ask}
+  reminder: {scan_if_only_owner_heard: true}
+episodes:
+  - reminder: {title: Blood test results, due_in_minutes: 10}
+    voices:
+      - {at_s: 20, speaker: owner, seconds: 5}
+    faces: {front: [owner], right: [stranger_c]}
+    watch: {answer: "yes"}
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, LISTENING, SCANNING, VISUAL_BYSTANDER, CHECK_MEMORY,
+               AWAITING_CONSENT, WAIT_FOR_DUE, DISCLOSE_SPEAK, DONE]
+      channel: spoken
+      camera_used: true

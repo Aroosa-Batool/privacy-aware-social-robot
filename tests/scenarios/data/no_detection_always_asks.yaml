@@ -1,0 +1,21 @@
+name: no_detection_always_asks
+description: With no sensors allowed the robot cannot know who is present, so it asks every time.
+settings:
+  privacy: {detection_modality: none, disclosure_policy: ask_once_per_bystander}
+episodes:
+  - reminder: {title: Dentist, due_in_minutes: 10}
+    watch: {answer: "yes"}
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, AWAITING_CONSENT, WAIT_FOR_DUE, DISCLOSE_SPEAK,
+               DONE]
+      channel: spoken
+      watch_prompts: 1
+      camera_used: false
+      remembered_consents: 0  # no identity to remember an answer for
+  - reminder: {title: Dentist, due_in_minutes: 10}
+    watch: {answer: "no"}
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, AWAITING_CONSENT, WAIT_FOR_DUE, DISCLOSE_WATCH,
+               DONE]
+      channel: watch
+      watch_prompts: 1

@@ -1,0 +1,12 @@
+name: non_sensitive_spoken
+description: A non-sensitive reminder is spoken at the due time; no listening, no camera.
+episodes:
+  - reminder: {title: Buy groceries, due_in_minutes: 5}  # sensitivity decided by the classifier
+    voices:
+      - {at_s: 0, speaker: stranger_a, seconds: 4}  # irrelevant: nothing private to protect
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, WAIT_FOR_DUE, DISCLOSE_SPEAK, DONE]
+      channel: spoken
+      spoken: 1
+      watch_prompts: 0
+      camera_used: false

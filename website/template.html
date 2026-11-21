@@ -1,0 +1,153 @@
+<!doctype html>
+<!-- The page template. build.py fills each double-braced name, and "icon:" names insert an icon
+     from icons.yml (optionally with a class after a second colon). Links starting with / are
+     made relative to the page. -->
+<html lang="en" data-root="/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}}</title>
+<meta name="description" content="{{description}}">
+<link rel="canonical" href="{{canonical}}">
+<meta property="og:title" content="{{page_title}}">
+<meta property="og:description" content="{{description}}">
+<meta property="og:type" content="article">
+<meta property="og:image" content="{{og_image}}">
+<meta name="theme-color" content="#090c13">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem("pasr-theme") || "system";
+    var dark = t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    document.documentElement.dataset.themePref = t;
+  } catch (e) { document.documentElement.dataset.theme = "dark"; }
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/pygments.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <button class="icon-btn menu-btn" type="button" aria-label="Open navigation" data-menu>
+      {{icon:menu}}
+    </button>
+    <a class="brand" href="/index" aria-label="PASR documentation home">
+      <img class="brand-logo" src="/assets/logo.svg" alt="" width="30" height="30">
+      <span class="brand-text"><strong>PASR</strong><small>{{tagline}}</small></span>
+    </a>
+    <nav class="tab-links" aria-label="Sections">{{tabs}}</nav>
+    <button class="search-btn" type="button" data-search>
+      {{icon:search}}<span>Search…</span><kbd>⌘K</kbd>
+    </button>
+    <div class="topbar-actions">
+      <button class="icon-btn search-icon" type="button" aria-label="Search" data-search>
+        {{icon:search}}
+      </button>
+      <a class="gh-link" href="{{repo}}" target="_blank" rel="noopener"
+        aria-label="GitHub repository">{{icon:github}}<span class="gh-stars" data-stars></span></a>
+      <button class="icon-btn" type="button" aria-label="Switch theme" data-theme-toggle>
+        {{icon:sun:icon theme-light}}{{icon:moon:icon theme-dark}}
+      </button>
+      <a class="cta" href="/quickstart">Get started{{icon:chevron-right}}</a>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  {{sidebar}}
+  <div class="scrim" data-scrim></div>
+  <main class="main" id="content">
+    <article class="article">
+      <header class="page-header">
+        <p class="eyebrow">{{group}}</p>
+        <div class="title-row">
+          <h1>{{page_title}}</h1>
+          <div class="page-actions" data-page-actions>
+            <button type="button" class="action-main" data-copy-page>
+              {{icon:copy}}<span>Copy page</span>
+            </button>
+            <button type="button" class="action-more" aria-label="More page actions"
+              aria-expanded="false" data-actions-toggle>{{icon:chevron-down}}</button>
+            <div class="action-menu" role="menu" hidden>
+              <button type="button" role="menuitem" data-copy-page>{{icon:copy}}
+                <span><strong>Copy page</strong><small>Copy this page as Markdown</small></span>
+              </button>
+              <a role="menuitem" href="{{view}}" target="_blank" rel="noopener">{{icon:file-text}}
+                <span><strong>View as Markdown</strong>
+                <small>The source of this page on GitHub</small></span>
+              </a>
+              <a role="menuitem" href="{{edit}}" target="_blank" rel="noopener">{{icon:pencil}}
+                <span><strong>Edit on GitHub</strong><small>Suggest a change to this page</small></span>
+              </a>
+            </div>
+          </div>
+        </div>
+        {{lead}}
+      </header>
+      <div class="prose">
+{{body}}
+      </div>
+      <div class="page-foot">
+        <a href="{{edit}}" target="_blank" rel="noopener">{{icon:pencil}}Edit this page on GitHub</a>
+      </div>
+      {{pager}}
+    </article>
+    {{toc}}
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <a class="brand" href="/index">
+        <img class="brand-logo" src="/assets/logo.svg" alt="" width="30" height="30">
+        <span class="brand-text"><strong>PASR</strong><small>{{tagline}}</small></span>
+      </a>
+      <p>{{blurb}}</p>
+      <a class="footer-gh" href="{{repo}}" target="_blank" rel="noopener">{{icon:github}}{{repo_name}}</a>
+    </div>
+    {{footer_columns}}
+  </div>
+  <div class="footer-thesis">
+    <a class="footer-thesis-text" href="/thesis">{{icon:book-open}}<span>{{thesis_line}}</span></a>
+    {{thesis_logos}}
+  </div>
+  <div class="footer-bottom">
+    <span>© {{year}} {{author}} · MIT licence · Model weights have their own licences.</span>
+    <div class="theme-switch" role="radiogroup" aria-label="Theme">
+      <button type="button" data-theme-set="system" aria-label="System theme">{{icon:monitor}}</button>
+      <button type="button" data-theme-set="light" aria-label="Light theme">{{icon:sun}}</button>
+      <button type="button" data-theme-set="dark" aria-label="Dark theme">{{icon:moon}}</button>
+    </div>
+  </div>
+</footer>
+
+<div class="search" data-search-dialog hidden>
+  <div class="search-panel" role="dialog" aria-modal="true" aria-label="Search the documentation">
+    <div class="search-field">
+      {{icon:search}}
+      <input type="search" placeholder="Search the docs…" aria-label="Search" autocomplete="off"
+        spellcheck="false">
+      <kbd>Esc</kbd>
+    </div>
+    <ul class="search-results" role="listbox"></ul>
+    <p class="search-hint">
+      <span><kbd>↑</kbd><kbd>↓</kbd> to move</span>
+      <span><kbd>↵</kbd> to open</span>
+      <span><kbd>Esc</kbd> to close</span>
+    </p>
+  </div>
+</div>
+<script type="text/markdown" id="page-source">{{raw}}</script>
+<script src="/assets/site.js" defer></script>
+{{mermaid}}
+</body>
+</html>

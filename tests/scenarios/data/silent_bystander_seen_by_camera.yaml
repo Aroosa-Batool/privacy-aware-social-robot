@@ -1,0 +1,14 @@
+name: silent_bystander_seen_by_camera
+description: Nobody speaks, but the camera scan finds a stranger on the left; the owner declines.
+settings:
+  privacy: {detection_modality: audio_and_camera, disclosure_policy: always_ask}
+episodes:
+  - reminder: {title: Therapy session, due_in_minutes: 10}
+    faces: {front: [owner], left: [stranger_b]}
+    watch: {answer: "no"}
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, LISTENING, SCANNING, VISUAL_BYSTANDER, CHECK_MEMORY,
+               AWAITING_CONSENT, WAIT_FOR_DUE, DISCLOSE_WATCH, DONE]
+      channel: watch
+      spoken: 0
+      camera_used: true

@@ -1,0 +1,19 @@
+theme,code,definition
+T1 Discretion when others are present,ask_privately_first,The robot should check with the owner privately (e.g. on the smartwatch) before saying a personal reminder in front of others.
+T1 Discretion when others are present,discreet_delivery,"When someone else is present the reminder should be delivered silently (watch, notification) or phrased so the other person cannot tell, without asking."
+T1 Discretion when others are present,silent_first_then_speak,Notify silently first and say the reminder out loud only if the owner does not react in time.
+T1 Discretion when others are present,would_not_use,Rejects the behaviour and says they would not use a robot that acts this way.
+T2 Asking again vs. remembering,repeated_asking_burden,Being asked again for the same visitor is annoying or unnecessary.
+T2 Asking again vs. remembering,remembering_convenient,Remembering an earlier answer for a known visitor is convenient or desirable.
+T2 Asking again vs. remembering,per_person_preference,Whether a reminder may be said aloud depends on which person is present.
+T2 Asking again vs. remembering,consent_should_not_persist,"An earlier permission should not carry over; the robot should ask again (each time, per reminder or unless told otherwise), or the ask-every-time variant is preferred."
+T2 Asking again vs. remembering,misrecognition_risk,Remembered permission is risky because the robot may confuse people (e.g. similar voices or a different visitor).
+T2 Asking again vs. remembering,never_ask_option,Wants an option to stop being asked altogether.
+T3 Context and sensitivity,per_reminder_sensitivity,Privacy depends on the reminder's topic; permission or privacy should be set per reminder.
+T3 Context and sensitivity,situational_awareness,The robot should understand the social situation before deciding how to deliver the reminder.
+T4 General evaluation,behaviour_acceptable,States that the robot's behaviour in the scenario was acceptable or correct.
+T4 General evaluation,socially_incompetent,Describes the robot as socially incompetent.
+T4 General evaluation,keep_it_short,Asks for shorter interactions or messages.
+T5 Sensing and listening,sensing_privacy_concern,Expresses a privacy concern about the robot listening to or watching people.
+T5 Sensing and listening,other_sensors,"Suggests other ways of detecting people (thermal or low-resolution cameras, radio signals of nearby devices)."
+T5 Sensing and listening,user_announces_visitor,"The owner should tell the robot that a visitor is present (button, guest mode) so it need not sense."

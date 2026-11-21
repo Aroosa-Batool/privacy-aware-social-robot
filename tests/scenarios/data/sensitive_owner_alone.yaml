@@ -1,0 +1,11 @@
+name: sensitive_owner_alone
+description: Sensitive reminder, silent room, only the owner in view , spoken out loud.
+episodes:
+  - reminder: {title: Doctor appointment, due_in_minutes: 10}
+    faces: {front: [owner]}
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, LISTENING, SCANNING, NO_BYSTANDER, WAIT_FOR_DUE,
+               DISCLOSE_SPEAK, DONE]
+      channel: spoken
+      watch_prompts: 0
+      camera_used: true

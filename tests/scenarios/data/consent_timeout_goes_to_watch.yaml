@@ -1,0 +1,16 @@
+name: consent_timeout_goes_to_watch
+description: The owner does not answer in time; the reminder goes to the watch and nothing is stored.
+settings:
+  privacy: {detection_modality: audio_and_camera, disclosure_policy: ask_once_per_bystander}
+  consent: {timeout_seconds: 30}
+episodes:
+  - reminder: {title: Doctor appointment, due_in_minutes: 10}
+    voices:
+      - {at_s: 60, speaker: stranger_a, seconds: 4}
+    watch: {answer: timeout}
+    expect:
+      states: [IDLE, WAKING, CHECKING_PRESENCE, LISTENING, AUDIO_BYSTANDER, CHECK_MEMORY,
+               AWAITING_CONSENT, WAIT_FOR_DUE, DISCLOSE_WATCH, DONE]
+      channel: watch
+      remembered_consents: 0
+      bystanders_stored: 0  # no decision, so the stranger's embedding is not kept

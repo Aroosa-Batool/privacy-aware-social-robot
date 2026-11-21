@@ -1,0 +1,11 @@
+# Example study condition. A profile only needs the settings it changes.
+# Use with: uv run pasr run --profile config/profiles/audio-only-ask-once.yaml
+# or load it on the dashboard (Profile → Profiles).
+privacy:
+  detection_modality: audio_only
+  disclosure_policy: ask_once_per_bystander
+reminder:
+  wake_lead_minutes: 7
+  listen_window_minutes: 5
+consent:
+  timeout_seconds: 45
