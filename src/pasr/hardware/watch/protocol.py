@@ -4,8 +4,8 @@
 PC → watch: the Bangle's Bluetooth console evaluates each line as JavaScript, so a command is a
 call of one of the app's globals, prefixed with ``\\x10`` (do not echo) and ended with a newline:
 
-- ``consent("7","Say it out loud?",60)`` , the app answers ``CONSENT:7:YES`` or ``CONSENT:7:NO``,
-  and sends nothing when nobody answers in time.
+- The guarded ``consentV2("7","Say it out loud?",60)`` call returns YES or NO for a tap,
+  DISPLAY_ERROR if the prompt is unavailable, and nothing when the prompt expires.
 - ``notify("Reminder: Dentist");Bluetooth.println("NOTIFIED:8")`` , the app's ``notify`` sends
   nothing back, so the line itself confirms that it ran.
 - ``Bluetooth.println("PONG:9:"+typeof consent)`` , the console is alive, and says whether the
@@ -24,7 +24,7 @@ BLE_CHUNK_BYTES = 20
 """Bangle.js 1 accepts 20-byte writes (default BLE MTU)."""
 MAX_TEXT = 160
 
-ReplyType = Literal["answer", "ack", "pong"]
+ReplyType = Literal["answer", "error", "ack", "pong"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,7 +45,11 @@ def _line(code: str) -> bytes:
 
 
 def consent_command(request_id: int, text: str, timeout_s: float) -> bytes:
-    return _line(f"consent({_js(str(request_id))},{_js(text[:MAX_TEXT])},{round(timeout_s)})")
+    args = f"{_js(str(request_id))},{_js(text[:MAX_TEXT])},{round(timeout_s)}"
+    return _line(
+        f'if(typeof consentV2==="function")consentV2({args});'
+        f'else Bluetooth.println("CONSENT:{request_id}:DISPLAY_ERROR")'
+    )
 
 
 def notify_command(request_id: int, text: str) -> bytes:
@@ -68,6 +72,8 @@ def parse_reply(line: str) -> WatchReply | None:
     request_id = int(request)
     if kind == "CONSENT" and value in ("YES", "NO"):
         return WatchReply("answer", request_id, value.lower())
+    if kind == "CONSENT" and value == "DISPLAY_ERROR":
+        return WatchReply("error", request_id, "display_error")
     if kind == "NOTIFIED" and not value:
         return WatchReply("ack", request_id)
     if kind == "PONG" and value:

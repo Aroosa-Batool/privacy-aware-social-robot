@@ -10,7 +10,8 @@
 //     line: "CONSENT:p17:YES" or "CONSENT:p17:NO". The id is a free-
 //     form correlation token chosen by the laptop. An optional third
 //     argument, `consent(id, msg, seconds)`, sets how long the prompt
-//     waits for an answer (default CONSENT_MS).
+//     waits for an answer (default CONSENT_MS). New clients call consentV2
+//     so they can distinguish a DISPLAY_ERROR from an explicit No.
 //   - Exposes a global `notify(msg)` function that shows a one-way
 //     private note on the wrist (used to deliver a reminder privately).
 //
@@ -121,40 +122,58 @@ function restoreScreen() {
 function consent(id, msg, seconds) {
   var seq = ++uiSeq;      // this prompt now owns the screen
   var handled = false;    // fires once (guards tap-vs-timeout race)
-  if (uiTimer) { clearTimeout(uiTimer); uiTimer = null; }
+  var removalTimer = null;
+  if (uiTimer !== null) { clearTimeout(uiTimer); uiTimer = null; }
   pendingConsent = id;
   if (redrawTimer) {
     clearInterval(redrawTimer);
     redrawTimer = null;
   }
-  wakeScreen();           // prompt must be lit AND tappable, not just drawn
-  Bangle.buzz(400);
   // finish() runs for whichever of tap / firmware-reject / timeout comes first.
   // answer === null means "timed out - send nothing". The seq guard drops it if
   // a newer prompt has already superseded this one.
   function finish(answer) {
     if (handled || seq !== uiSeq) return;
     handled = true;
-    if (uiTimer) { clearTimeout(uiTimer); uiTimer = null; }
-    if (answer !== null) {
+    if (uiTimer !== null) { clearTimeout(uiTimer); uiTimer = null; }
+    if (removalTimer !== null) { clearTimeout(removalTimer); removalTimer = null; }
+    if (answer === null) {
+      // Mark handled before dismissing: even an immediate callback cannot answer after expiry.
+      try { E.showPrompt(); } catch (err) { /* the request has already expired */ }
+    } else {
       Bluetooth.println("CONSENT:" + id + ":" + answer);
     }
     pendingConsent = null;
     restoreScreen();
   }
-  uiTimer = setTimeout(function () {
-    E.showPrompt();        // remove the unanswered prompt
-    finish(null);
-  }, seconds ? seconds * 1000 : CONSENT_MS);
-  E.showPrompt(msg, {
-    title: "Robot asks",
-    buttons: { "Yes": 1, "No": 0 }
-  }).then(function (answer) {
-    finish(answer ? "YES" : "NO");
-  }).catch(function (err) {
-    finish("NO");
-  });
+  function promptRemoved() {
+    if (handled || seq !== uiSeq || removalTimer !== null) return;
+    // A button press can remove the screen before its promise delivers Yes or No.
+    // An external dismissal on 2v28 removes it without settling that promise.
+    if (uiTimer !== null) { clearTimeout(uiTimer); uiTimer = null; }
+    removalTimer = setTimeout(function () { finish("DISPLAY_ERROR"); }, 100);
+  }
+  try {
+    wakeScreen();
+    Bangle.buzz(400);
+    uiTimer = setTimeout(function () { finish(null); }, seconds ? seconds * 1000 : CONSENT_MS);
+    E.showPrompt(msg, {
+      title: "Robot asks",
+      buttons: { "Yes": 1, "No": 0 },
+      remove: promptRemoved
+    }).then(function (answer) {
+      if (answer === 1) finish("YES");
+      else if (answer === 0) finish("NO");
+      else finish("DISPLAY_ERROR");
+    }).catch(function () { finish("DISPLAY_ERROR"); });
+  } catch (err) {
+    finish("DISPLAY_ERROR");
+  }
 }
+
+// A legacy client may still call consent(). A new client checks this entry point on
+// every prompt, including after reconnection, before accepting a Yes or No.
+var consentV2 = consent;
 
 // Called by the laptop over UART, like consent(), but one-way: it shows a
 // PRIVATE message on the watch and sends nothing back. Used to deliver a
@@ -169,7 +188,7 @@ function consent(id, msg, seconds) {
 // idle screen once acknowledged.
 function notify(msg) {
   var seq = ++uiSeq;
-  if (uiTimer) { clearTimeout(uiTimer); uiTimer = null; }
+  if (uiTimer !== null) { clearTimeout(uiTimer); uiTimer = null; }
   pendingConsent = null;
   if (redrawTimer) {
     clearInterval(redrawTimer);

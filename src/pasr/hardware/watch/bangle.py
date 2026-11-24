@@ -13,7 +13,7 @@ from collections.abc import Callable
 from typing import Any, Protocol
 
 from pasr.domain.enums import WatchAnswer
-from pasr.hardware.protocols import HardwareNotAvailableError
+from pasr.hardware.protocols import HardwareNotAvailableError, WatchPromptDisplayError
 from pasr.hardware.watch.protocol import (
     LineDecoder,
     WatchReply,
@@ -186,7 +186,9 @@ class BangleWatch:
             lambda request_id: consent_command(request_id, text, timeout_s),
             timeout_s + self.reply_margin_s,
         )
-        if reply is None or reply.value not in ("yes", "no"):
+        if reply is not None and reply.type == "error":
+            raise WatchPromptDisplayError("Consent prompt unavailable on the watch.")
+        if reply is None or reply.type != "answer" or reply.value not in ("yes", "no"):
             return WatchAnswer.TIMEOUT
         return WatchAnswer(reply.value)
 
@@ -194,7 +196,7 @@ class BangleWatch:
         reply = await self._request(
             lambda request_id: notify_command(request_id, text), self.reply_margin_s
         )
-        if reply is None:
+        if reply is None or reply.type != "ack":
             raise HardwareNotAvailableError(
                 "the watch did not show the reminder; is bangle/consent_app.js loaded?"
             )
@@ -202,7 +204,7 @@ class BangleWatch:
     async def ping(self) -> bool:
         """True when the watch answers and the consent app is loaded."""
         reply = await self._request(ping_command, self.reply_margin_s)
-        if reply is None:
+        if reply is None or reply.type != "pong":
             return False
         self.app_missing = reply.value != "function"
         return not self.app_missing
@@ -236,7 +238,7 @@ class BangleWatch:
                 elif line.strip():
                     logger.debug("ignoring %d characters of watch console output", len(line))
                 continue
-            if reply.type != "pong":
+            if reply.type in ("answer", "ack"):
                 self.app_missing = False
             future = self._waiting.get(reply.id)
             if future is not None and not future.done():

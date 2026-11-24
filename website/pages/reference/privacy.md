@@ -3,6 +3,11 @@ title: Privacy model
 description: The robot exists to protect the owner's private information from people nearby, so it must handle everyone's data, the owner's and the bystanders', carefully itself. What it processes, what it keeps, and how each guarantee is enforced.
 ---
 
+A robot that recorded the room to protect a reminder would create a bigger privacy problem than
+the one it solves. This page lists what the robot processes, what it keeps and for how long, and
+how each guarantee is enforced in code and tests, so you can check the claims rather than take
+them on trust. The same content lives in the repository as `docs/PRIVACY.md`.
+
 ## What is processed, and what is kept
 
 | Data | Comes from | Kept? | How long |
@@ -34,15 +39,18 @@ database | [Deletion really deletes](#deletion) | `secure_delete`, WAL checkpoin
 
 ### No raw media on disk
 
-Frames and audio exist only as in-memory `Frame` and `AudioChunk` objects. A ruff rule (TID251)
-bans `cv2.imwrite`, `cv2.VideoWriter`, `soundfile.write`, `scipy.io.wavfile.write`, `numpy.save` and
-`numpy.savez` in `src/`. After every scenario test, the suite checks that the only binary data in
+Recordings would be the most sensitive data the system could hold, so it never writes any
+([ADR 0002](/decisions/0002-embeddings-only)). Frames and audio exist only as in-memory `Frame`
+and `AudioChunk` objects. A ruff rule (TID251) bans `cv2.imwrite`, `cv2.VideoWriter`, `soundfile.write`, `scipy.io.wavfile.write`, `numpy.save` and
+`numpy.savez` in `src/`, so code that tried to save media would fail the checks. After every scenario test, the suite checks that the only binary data in
 the database is float32 vectors of the declared size and that the data folder holds nothing but
 the database. `.gitignore` and a 500 KB pre-commit limit keep media out of git.
 
 ### Owner away {#owner-away}
 
-Every reminder flow first pings the owner's watch (`CHECKING_PRESENCE`). Without an answer from
+If the owner is not in the room, there is nothing to protect, and listening or looking around
+would only capture other people. So every reminder flow first pings the owner's watch
+(`CHECKING_PRESENCE`). Without an answer from
 the consent app the flow goes to `OWNER_AWAY` and straight to watch delivery: the microphone and
 camera are never opened and nothing is said. The watch is pinged again right before speaking.
 Scenario tests `owner_away_never_senses` and `owner_leaves_before_due` check it.
@@ -50,8 +58,8 @@ Scenario tests `owner_away_never_senses` and `owner_leaves_before_due` check it.
 
 ### The camera only when allowed and needed
 
-The camera is opened only for enrolment and the scan step, closed in `finally`, in a helper
-process that releases it if the robot's process dies. With detection *audio only* the flow never
+The camera is opened only for enrolment and the scan step. It is closed in a `finally` block, so
+an error cannot leave it running, and it runs in a helper process that releases it if the robot's process dies. With detection *audio only* the flow never
 reaches the scan (`audio_only_never_uses_camera`); with *camera only* it never opens the
 microphone to look for bystanders (`camera_only_never_listens`). The scan keeps the camera on
 until the due time (2 minutes when the reminder is on time) unless it finds someone sooner, and
@@ -61,26 +69,30 @@ head moves and frames, and the seconds.
 
 ### Following never makes speaking more likely
 
-A followed face is always compared: if it never comes into full view, or is lost, its best view
-so far is, so it still counts as a bystander unless it clearly matches the owner.
+Following a face is meant to get a clearer view of it, never to lose it. A followed face is
+always compared: if it never comes into full view, or is lost, its best view so far is compared
+instead, so it still counts as a bystander unless it clearly matches the owner.
 
 ### The live view shows, never stores
 
-Off by default. Only the latest frame of the current step is kept in memory and dropped when the
+The live view is off by default. Only the latest frame of the current step is kept in memory and dropped when the
 step ends; a separate window process receives it through a pipe. It never shows a reminder title
 and nothing while the owner is away. It does show bystanders' faces, so it is for development or
 for sessions whose participants agreed to it.
 
 ### The event log holds no personal content
 
-`EventBus.emit` accepts only allow-listed keys with short scalar values and raises otherwise.
+The event log exists for research, and research needs numbers, not people's details.
+`EventBus.emit` accepts only allow-listed keys with short scalar values and raises an error for
+anything else, so a careless log call cannot leak personal content.
 Tests check that reminder titles never appear in the log.
 
 ### Uncertainty never leads to speaking aloud {#fail-closed}
 
 Any error (missing enrolment, a model mismatch, a crashed plugin, an unreachable device) moves the
 flow to `FAILED` and sends the reminder to the watch. An unanswered consent prompt counts as
-*no*, and nothing is remembered. ([ADR 0003](/decisions/0003-fail-closed))
+*no*, and nothing is remembered from it. The price is that a reminder is occasionally sent to
+the watch when it could safely have been spoken. ([ADR 0003](/decisions/0003-fail-closed))
 
 ### Bystander data is minimal
 
@@ -89,16 +101,19 @@ policy, because only then is there something to remember.
 
 ### Sensitive titles are not repeated
 
-After a reminder is set by voice, the robot's spoken confirmation leaves out a sensitive title.
+After a reminder is set by voice, the robot's spoken confirmation leaves out a sensitive title,
+so the confirmation does not disclose what the reminder itself would not.
 
 ### Deletion really deletes {#deletion}
 
-SQLite `secure_delete` overwrites deleted rows. A reset checkpoints the write-ahead log. Forgetting
+SQLite `secure_delete` overwrites deleted rows instead of only marking them free. A reset
+checkpoints the write-ahead log, so deleted data does not linger there. Forgetting
 a bystander cascades to their embeddings and consent answers.
 
 ### Embeddings from different models are never compared
 
-Each embedding stores its model name. Matching against another model raises, which fails closed,
+Embeddings from different models are not comparable, and comparing them would give meaningless
+scores. So each embedding stores its model name. Matching against another model raises, which fails closed,
 and the dashboard asks for re-enrolment.
 
 ### No network except one deliberate download
@@ -109,11 +124,12 @@ a connection. Silero and Resemblyzer weights ship inside their packages.
 ### Only what is needed is inferred
 
 InsightFace is loaded with `allowed_modules=["detection", "recognition"]`: its age and gender
-model is never loaded.
+model is never loaded, so the robot cannot guess those attributes.
 
 ### Calibration stores nothing about other people
 
-Other people's samples are scored against the owner and dropped; only numbers come back, and the
+Calibration needs samples of other people to find a good threshold, but it does not need to keep
+them. Their samples are scored against the owner and dropped; only numbers come back, and the
 log records only the modality, plugin and threshold.
 
 ## Reset
@@ -124,5 +140,5 @@ log records only the modality, plugin and threshold.
 | Reset, delete owner | deleted | deleted | deleted | deleted | deleted | kept |
 | `--purge-log` | | | | | | deleted |
 
-*Delete last consent* revokes the newest remembered answer, keeping it marked as revoked for the
-audit trail, or deletes it outright with `--hard`.
+*Delete last consent* takes back the newest remembered answer. By default it keeps the answer
+marked as revoked, for the audit trail; with `--hard` it deletes it outright.

@@ -14,6 +14,10 @@ class HardwareNotAvailableError(RuntimeError):
     """A real device adapter that is not built yet, or a device that cannot be reached."""
 
 
+class WatchPromptDisplayError(RuntimeError):
+    """The watch could not obtain an explicit choice from a usable consent prompt."""
+
+
 class RobotHead(Protocol):
     async def connect(self) -> None: ...
 
@@ -74,7 +78,7 @@ class Watch(Protocol):
         ...
 
     async def prompt(self, text: str, timeout_s: float) -> WatchAnswer:
-        """Ask a yes/no question; ``TIMEOUT`` if the owner does not answer in time."""
+        """Return the choice or TIMEOUT. An unusable prompt raises WatchPromptDisplayError."""
         ...
 
     async def notify(self, text: str) -> None: ...

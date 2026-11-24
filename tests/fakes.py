@@ -129,14 +129,20 @@ class ConsentAppConsole:
     command lines the PC sends and returns what the watch prints. The real app is also run under
     Node against the same commands (tests/unit/test_consent_app_js.py)."""
 
-    CONSENT = re.compile(r'^consent\("(\d+)",(".*"),(\d+)\)$')
+    CONSENT = re.compile(
+        r'^if\(typeof consentV2==="function"\)consentV2\("(\d+)",(".*"),(\d+)\);'
+        r'else Bluetooth\.println\("CONSENT:\1:DISPLAY_ERROR"\)$'
+    )
     NOTIFY = re.compile(r'^notify\((".*")\);Bluetooth\.println\("NOTIFIED:(\d+)"\)$')
     PING = re.compile(r'^Bluetooth\.println\("PONG:(\d+):"\+typeof consent\)$')
 
-    def __init__(self, answer: str | None = "YES", *, loaded: bool = True) -> None:
+    def __init__(
+        self, answer: str | None = "YES", *, loaded: bool = True, legacy: bool = False
+    ) -> None:
         self.answer = answer
         """``YES``/``NO``; ``None`` leaves prompts unanswered (the app then sends nothing)."""
         self.loaded = loaded
+        self.legacy = legacy
         self.received: list[tuple[str, ...]] = []
 
     def evaluate(self, line: bytes) -> list[str]:
@@ -149,11 +155,13 @@ class ConsentAppConsole:
             "consent" if self.CONSENT.match(code) else "notify" if self.NOTIFY.match(code) else None
         )
         assert name is not None, f"unexpected command: {code!r}"
-        if not self.loaded:
-            return [f'Uncaught ReferenceError: "{name}" is not defined', " at line 1 col 1", code]
         if match := self.CONSENT.match(code):
+            if self.legacy or not self.loaded:
+                return [f"CONSENT:{match[1]}:DISPLAY_ERROR"]
             self.received.append(("consent", json.loads(match[2]), int(match[3])))
             return [f"CONSENT:{match[1]}:{self.answer}"] if self.answer else []
+        if not self.loaded:
+            return [f'Uncaught ReferenceError: "{name}" is not defined', " at line 1 col 1", code]
         match = self.NOTIFY.match(code)
         assert match is not None
         self.received.append(("notify", json.loads(match[1])))

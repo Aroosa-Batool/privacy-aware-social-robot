@@ -1,53 +1,43 @@
-# Instrument-based analysis (LimeSurvey 841423)
+# Ohbot disclosure-policy study (LimeSurvey 841423)
 
-The main statistical plots and comparisons use only the published item sets of MDMT v2, UEQ-S and PSI Social Competence. These instruments are present in the actual questionnaire; labels are not applied retrospectively to unrelated questions.
+The questionnaire export contains 284 records. The 34 submitted questionnaires supply 102 participant–policy records. A means disclose without asking, B means ask every time and C means ask once and remember. The same 34 participants supplied all three ratings for every score. The manipulation checks describe understanding of the stories.
 
-| Instrument | Score | Items and scoring |
+| Instrument | Participant score | Scoring |
 |---|---|---|
-| MDMT v2 (September 2025) | Performance trust | Reliable + Competent; 8 items, mean on 0–7 |
-| MDMT v2 (September 2025) | Moral trust | Ethical + Sincere + Benevolent; 12 items, mean on 0–7 |
-| UEQ-S | Pragmatic quality | UEQ1–4, subtract 4 then average; −3 to +3 |
-| UEQ-S | Hedonic quality | UEQ5–8, subtract 4 then average; −3 to +3 |
-| PSI Social Competence | Social competence | SOC1–4, reverse SOC3 as 8 − response; adapted 1–7 response format |
+| MDMT v2 | Reliable, Competent, Ethical, Sincere, Benevolent | Mean of four 0–7 items per subscale. The survey omitted the optional *Does not fit* response. |
+| MDMT v2 | Performance trust and moral trust | Performance averages Reliable and Competent (8 items). Moral averages Ethical, Sincere and Benevolent (12 items). |
+| UEQ-S | Pragmatic and hedonic quality | Subtract 4 from each response. Average items 1–4 and 5–8 separately. Both scales range from −3 to +3. |
+| PSI | Social Competence subscale (SOC) | Average SOC1–4 after reversing SOC3 as 8 minus the response on the adapted 1–7 scale. |
 
-All items must be present for a score. The MDMT not-fit option was omitted; PSI uses seven rather than the original five response categories. The item sets remain published instruments, but these administration adaptations must be disclosed. PSI consistency in scenario A is alpha = .63 (B .88, C .82); all other scales have alpha >= .77 in every scenario. Internal consistency does not establish validity.
+All constituent items are required. Each score is compared within participants who have that score in all three policies. The group of completers is the same for all ten scores in this export. The original instruments and scoring rules are cited in the thesis. [MDMT paper](https://arxiv.org/abs/2311.14887) · [MDMT v2 scoring guide](https://research.clps.brown.edu/SocCogSci/Measures/MDMT_v2_%282025%29_Full_scale.pdf) · [UEQ-S paper](https://doi.org/10.9781/ijimai.2017.09.001) · [PSI paper](https://doi.org/10.1145/3415139) · [PSI scoring key](https://ipip.ori.org/PSIScalesandScoring.htm)
 
-Privacy-awareness items are adapted and are retained individually as response-category counts. Acceptability, control, social appropriateness and intention to use are study-specific single items, also descriptive only. There are no composites, significance tests or main statistical plots for these questions. Preference rankings and sensitivity are descriptive counts, presented in text/tables, with no scale-score plots or inferential tests.
+## Reproduce the results
 
-## Sample and statistics
+With Python 3.12, run these commands from the robot repository root.
 
-Export `survey/results-survey841423.csv` (284 records, 34 submitted). 34 completers; 102 participant–scenario records. A = disclose without asking, B = ask every time, C = ask once and remember. All 34 appear in distribution plots. Paired comparisons require both relevant checks passed (B–A n = 28, C–A n = 30, C–B n = 27); no-exclusion (n = 34) and all-checks-passed (n = 27) analyses are sensitivity checks.
-
-Two-sided Wilcoxon signed-rank tests, Pratt zeros, explicit normal approximation, differences rounded to nine decimals. `p_holm` adjusts three pairs within a score; `p_holm_family` adjusts all 15 instrument-based comparisons per exclusion rule. Main interpretation uses the latter. Median paired difference with 95% percentile bootstrap CI (10,000 resamples, seed 20261114); rank-biserial effect size omits zeros. Friedman, paired t and mixed-model results are supplementary. The comparisons are exploratory, as disclosed briefly in the thesis methods.
-
-## Figures and provenance
-
-- `fig_hri_scales.*`: overview of the five instrument-based scores.
-- `fig_primary.*`: consolidated MDMT v2 trust factors and PSI Social Competence, with family-adjusted comparisons.
-- `fig_secondary.*`: UEQ-S pragmatic and hedonic quality.
-- `fig_psi.*`: standalone PSI Social Competence for reuse.
-- `fig_paired_memory.*`: C-minus-B median paired differences and unadjusted bootstrap intervals, grouped by instrument units.
-- `fig_slide_rq2.*`, `fig_slide_rq3.*`, `fig_slide_secondary.*`: MDMT, UEQ-S and PSI slide figures.
-
-Panels name the actual instrument and show its scoring range and sample size. Boxes represent IQRs; centre lines medians; whiskers reach observations within 1.5 IQR; diamonds mark observations beyond. Thesis distribution figures annotate all three pairs using `p_holm_family` from the existing comparison table, with the pair-specific n; they plot all 34 completers. Box definitions appear once in the thesis caption rather than being repeated in the graphic. Paired-difference intervals are descriptive and unadjusted, not equivalence tests. Instrument citations appear directly in the thesis captions and slides. Counts and adapted privacy responses do not appear as established-scale graphs. 
-
-Sources: [MDMT v2 instructions](https://research.clps.brown.edu/SocCogSci/Measures/MDMT_v2_(2025)_Full_scale.pdf), [UEQ-S materials](https://www.ueq-online.org/), [PSI scoring](https://ipip.ori.org/PSIScalesandScoring.htm).
-
-## Reproduce
-
-```bash
+```sh
 python -m pip install -r survey/analysis/requirements-analysis.txt
-python survey/analysis/analyze_survey.py   # defaults to survey/results-survey841423.csv
+python survey/analysis/analyze_survey.py
 ```
 
-Input is read only and IP columns are dropped on load. `out/` is ignored by git because it contains participant-level answers and free text. `environment.json` records versions. Python 3.12, numpy 2.0.2, pandas 2.3.3, scipy 1.13.1, statsmodels 0.14.6 and matplotlib 3.9.4 were used for the current calculation. The notebook uses the same scored-measure list.
+The script accepts an optional path to a LimeSurvey CSV. It reads the export locally and drops the IP column. The ignored `out/` directory holds participant scores and free text alongside the aggregate results. The questionnaire export and participant-level files stay in the research workspace.
 
-To regenerate figures only from the existing scored exports, without rerunning statistical estimation:
+To regenerate the six figures and editable appendix tables from the saved result tables and copy the publication assets into the adjacent thesis project, run:
 
-```bash
-python survey/analysis/render_figures.py
+```sh
+python survey/analysis/render_figures.py --thesis-dir ../write-up
 ```
 
-## Free-text coding
+## Statistical outputs
 
-`codebook.csv` (answer id, field, codes) and `codebook_definitions.csv` hold the inductive, single-coder coding of the 34 free-text answers from 20 completers (open comments per scenario, the sensing question MOTHER and the final comment). `out/coding_sheet_second_coder.csv` is a blind, shuffled sheet for a second coder; placing a filled `codebook_coder2.csv` here makes the script report Cohen's kappa.
+- The score file contains one row per respondent and policy. The descriptive export gives the sample SD, median, mean, unadjusted 95% Student *t* interval for each policy mean, and Cronbach’s alpha calculated across the constituent items within policy.
+- The omnibus export gives ten tie-corrected Friedman tests with two degrees of freedom, the raw and ten-test Holm *p* values, and Kendall’s *W*.
+- The paired export compares B−A, C−A and C−B for each score. Two-sided Wilcoxon signed-rank tests omit zero differences and assign tied magnitudes their average ranks. The null distribution counts all possible sign assignments to the nonzero differences. Integer item sums preserve ties in fractional score means. Each row gives the full paired sample, the count of nonzero differences, the median change in score points, and raw and 30-test Holm *p* values. Figures use the full-precision adjusted results and show .0496 where three decimals would display .050.
+- The rankings export counts each option at every rank in complete ballots, including zero counts. The three sensing options and four handling options each have 34 complete ballots. Individual privacy, social appropriateness, control, acceptability, intention-to-use and sensitivity responses are reported descriptively.
+- The agreement figure counts respondents who selected *Somewhat agree*, *Agree* or *Strongly agree* for control (CTL), acceptability (ACC) and intention to use (INT) under each policy. The response-category counts for these items are in **context_response_counts.csv**.
+
+The instrument outputs are **measure_descriptives.csv**, **policy_omnibus.csv** and **policy_pairs.csv**. The rankings are in **ranking_counts.csv**. The publication figures are **fig_mdmt_subscales**, **fig_mdmt_factors**, **fig_ueqs**, **fig_psi_soc**, **fig_agreement** and **fig_rankings**. The renderer creates vector PDFs, PNG previews and the four labelled LaTeX tables in **study_instruments.tex**.
+
+## Optional comments
+
+The codebook records the codes assigned to each of 34 answers from 20 completers. Its accompanying definitions describe each code. The main script reports counts by answer and by participant. A completed independent second-coder sheet can also be used to calculate agreement. Free text and coding sheets are local research data.

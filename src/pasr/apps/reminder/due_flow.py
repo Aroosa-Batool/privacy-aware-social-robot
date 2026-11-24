@@ -765,7 +765,7 @@ class DueFlow:
         ask_once = (
             self.settings.privacy.disclosure_policy is DisclosurePolicy.ASK_ONCE_PER_BYSTANDER
         )
-        if ask_once and answer is not WatchAnswer.TIMEOUT:
+        if ask_once and answer in (WatchAnswer.YES, WatchAnswer.NO):
             self._remember_answer(answer is WatchAnswer.YES, remembered)
         if answer is WatchAnswer.YES:
             await self._deliver(DeliveryChannel.SPOKEN, "owner said yes")
